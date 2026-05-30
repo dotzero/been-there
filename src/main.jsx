@@ -399,8 +399,17 @@ function writeStateToUrl(visited, language, languageExplicit, mapStyle, mapStyle
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
+function canUseMapbox() {
+  if (!MAPBOX_TOKEN || !mapboxgl.supported()) {
+    return false;
+  }
+
+  return true;
+}
+
 function App() {
-  const initialUrlState = React.useMemo(parseStateFromUrl, []);
+  const [initialUrlState] = React.useState(parseStateFromUrl);
+  const [initialCanUseMapbox] = React.useState(canUseMapbox);
   const [visited, setVisited] = React.useState(initialUrlState.visited);
   const [language, setLanguage] = React.useState(initialUrlState.language);
   const [languageExplicit, setLanguageExplicit] = React.useState(initialUrlState.languageExplicit);
@@ -412,13 +421,20 @@ function App() {
   const [copyStatus, setCopyStatus] = React.useState('');
   const [exportStatus, setExportStatus] = React.useState('');
   const [countriesGeoJson, setCountriesGeoJson] = React.useState(null);
-  const [mapError, setMapError] = React.useState('');
-  const [renderMode, setRenderMode] = React.useState(MAPBOX_TOKEN ? 'mapbox' : 'svg');
+  const [mapError, setMapError] = React.useState(() => {
+    if (!MAPBOX_TOKEN) {
+      return 'mapboxTokenMissing';
+    }
+
+    return initialCanUseMapbox ? '' : 'webglFallback';
+  });
+  const [renderMode, setRenderMode] = React.useState(initialCanUseMapbox ? 'mapbox' : 'svg');
   const [mapSize, setMapSize] = React.useState({ width: 1200, height: 760 });
   const mapRef = React.useRef(null);
   const mapboxRef = React.useRef(null);
   const mapboxContainerRef = React.useRef(null);
   const activeMapStyleRef = React.useRef(null);
+  const mapStyleRef = React.useRef(mapStyle);
   const svgRef = React.useRef(null);
   const visitedRef = React.useRef(visited);
 
@@ -511,8 +527,11 @@ function App() {
   }, [visited]);
 
   React.useEffect(() => {
+    mapStyleRef.current = mapStyle;
+  }, [mapStyle]);
+
+  React.useEffect(() => {
     if (!MAPBOX_TOKEN) {
-      setMapError('mapboxTokenMissing');
       return undefined;
     }
 
@@ -523,34 +542,26 @@ function App() {
     setMapError('');
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    let map;
-
-    try {
-      map = new mapboxgl.Map({
-        container: mapboxContainerRef.current,
-        style: MAPBOX_STYLES[mapStyle],
-        center: [10, 18],
-        zoom: 1.15,
-        minZoom: 1,
-        maxZoom: 5,
-        maxBounds: [
-          [-180, -60],
-          [180, 82],
-        ],
-        projection: 'mercator',
-        renderWorldCopies: false,
-        preserveDrawingBuffer: true,
-        attributionControl: false,
-        logoPosition: 'bottom-right',
-      });
-    } catch {
-      setRenderMode('svg');
-      setMapError('webglFallback');
-      return undefined;
-    }
+    const map = new mapboxgl.Map({
+      container: mapboxContainerRef.current,
+      style: MAPBOX_STYLES[mapStyleRef.current],
+      center: [10, 18],
+      zoom: 1.15,
+      minZoom: 1,
+      maxZoom: 5,
+      maxBounds: [
+        [-180, -60],
+        [180, 82],
+      ],
+      projection: 'mercator',
+      renderWorldCopies: false,
+      preserveDrawingBuffer: true,
+      attributionControl: false,
+      logoPosition: 'bottom-right',
+    });
 
     mapboxRef.current = map;
-    activeMapStyleRef.current = mapStyle;
+    activeMapStyleRef.current = mapStyleRef.current;
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
     const onLoad = () => addVisitedLayers(map, countriesGeoJson, visitedRef.current);
