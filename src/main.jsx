@@ -17,7 +17,8 @@ import { COUNTRIES, COUNTRY_BY_CODE, COUNTRY_BY_NUMERIC, TINY_COUNTRY_CODES } fr
 import './styles.css';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
-const COUNTRIES_QUERY_KEY = 'c';
+const LEGACY_COUNTRIES_QUERY_KEY = 'c';
+const VISITED_QUERY_KEY = 'v';
 const LANGUAGE_QUERY_KEY = 'l';
 const STYLE_QUERY_KEY = 's';
 const DEFAULT_LANGUAGE = 'en';
@@ -39,6 +40,10 @@ const TINY_LAYER_ID = 'visited-tiny-country-markers';
 
 isoCountries.registerLocale(enCountries);
 isoCountries.registerLocale(ruCountries);
+
+const COUNTRY_CODES = COUNTRIES.map((country) => country.code).sort();
+const COUNTRY_CODE_INDEX = new Map(COUNTRY_CODES.map((code, index) => [code, index]));
+const VISITED_MASK_BYTES = Math.ceil(COUNTRY_CODES.length / 8);
 
 const MESSAGES = {
   en: {
@@ -89,27 +94,102 @@ const MESSAGES = {
   },
 };
 
+function toBase64Url(bytes) {
+  let binary = '';
+
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+
+  return btoa(binary)
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '');
+}
+
+function fromBase64Url(value) {
+  try {
+    const normalized = value.replaceAll('-', '+').replaceAll('_', '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const binary = atob(padded);
+
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+function encodeVisited(visited) {
+  if (visited.size === 0) {
+    return '';
+  }
+
+  const bytes = new Uint8Array(VISITED_MASK_BYTES);
+
+  visited.forEach((code) => {
+    const index = COUNTRY_CODE_INDEX.get(code);
+
+    if (index === undefined) {
+      return;
+    }
+
+    bytes[Math.floor(index / 8)] |= 1 << (index % 8);
+  });
+
+  return toBase64Url(bytes);
+}
+
+function decodeVisited(value) {
+  if (!value) {
+    return null;
+  }
+
+  const bytes = fromBase64Url(value);
+
+  if (!bytes || bytes.length > VISITED_MASK_BYTES) {
+    return null;
+  }
+
+  const visited = new Set();
+
+  COUNTRY_CODES.forEach((code, index) => {
+    const byte = bytes[Math.floor(index / 8)] ?? 0;
+
+    if ((byte & (1 << (index % 8))) !== 0) {
+      visited.add(code);
+    }
+  });
+
+  return visited;
+}
+
+function decodeLegacyCountries(value) {
+  const codes = (value ?? '')
+    .split(',')
+    .map((code) => code.trim().toUpperCase())
+    .filter((code) => COUNTRY_BY_CODE.has(code));
+
+  return new Set(codes);
+}
+
 function parseStateFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const rawCountries = params.get(COUNTRIES_QUERY_KEY);
+  const rawVisited = params.get(VISITED_QUERY_KEY);
+  const rawCountries = params.get(LEGACY_COUNTRIES_QUERY_KEY);
   const rawLanguage = params.get(LANGUAGE_QUERY_KEY)?.toLowerCase();
   const rawMapStyle = params.get(STYLE_QUERY_KEY);
   const language = SUPPORTED_LANGUAGES.has(rawLanguage) ? rawLanguage : DEFAULT_LANGUAGE;
   const languageExplicit = params.has(LANGUAGE_QUERY_KEY);
   const mapStyle = SUPPORTED_MAP_STYLES.has(rawMapStyle) ? rawMapStyle : DEFAULT_MAP_STYLE;
   const mapStyleExplicit = params.has(STYLE_QUERY_KEY);
-
-  const codes = (rawCountries ?? '')
-    .split(',')
-    .map((code) => code.trim().toUpperCase())
-    .filter((code) => COUNTRY_BY_CODE.has(code));
+  const compactVisited = decodeVisited(rawVisited);
 
   return {
     language,
     languageExplicit,
     mapStyle,
     mapStyleExplicit,
-    visited: new Set(codes),
+    visited: compactVisited ?? decodeLegacyCountries(rawCountries),
   };
 }
 
@@ -243,11 +323,11 @@ function updateVisitedLayers(map, visited) {
 
 function writeStateToUrl(visited, language, languageExplicit, mapStyle, mapStyleExplicit) {
   const url = new URL(window.location.href);
-  const codes = [...visited].sort();
+  const encodedVisited = encodeVisited(visited);
   const queryParts = [];
 
-  if (codes.length > 0) {
-    queryParts.push(`${COUNTRIES_QUERY_KEY}=${codes.join(',')}`);
+  if (encodedVisited) {
+    queryParts.push(`${VISITED_QUERY_KEY}=${encodedVisited}`);
   }
 
   if (languageExplicit || language !== DEFAULT_LANGUAGE) {
@@ -661,6 +741,8 @@ function App() {
         )}
         {mapError && <div className="map-error" role="alert">{messages[mapError]}</div>}
       </section>
+
+      <img className="app-logo" src="/logo.png" alt="Been There" />
 
       <div className="toolbar" aria-label="Map actions">
         <button

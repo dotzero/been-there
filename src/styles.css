@@ -93,6 +93,17 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
+.app-logo {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 5;
+  width: clamp(56px, 6.5vw, 95px);
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
 .toolbar {
   position: fixed;
   top: 16px;
@@ -286,6 +297,12 @@ button {
 }
 
 @media (max-width: 620px) {
+  .app-logo {
+    top: 10px;
+    left: 10px;
+    width: 54px;
+  }
+
   .toolbar {
     top: 10px;
     right: 10px;

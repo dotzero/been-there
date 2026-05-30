@@ -1,5 +1,7 @@
 # Been There
 
+![](./public/logo.png)
+
 Been There lets you mark the countries you have visited on an interactive world map.
 
 You can share your map with a link or save it as a PNG image. It is fully private and safe to use: there is no backend, and your selected countries are stored only in the URL.
@@ -21,7 +23,7 @@ You can share your map with a link or save it as a PNG image. It is fully privat
 The app uses query parameters:
 
 ```text
-c=FRA,JPN,RUS
+v=AAAAAAAAAAQAAEAAAAAAAAAABAAAAAAAAA
 l=ru
 s=dark
 ```
@@ -29,14 +31,16 @@ s=dark
 Example:
 
 ```text
-/?c=FRA,JPN,RUS&l=ru&s=dark
+/?v=AAAAAAAAAAQAAEAAAAAAAAAABAAAAAAAAA&l=ru&s=dark
 ```
 
 Supported values:
 
-- `c`: comma-separated ISO 3166-1 alpha-3 country codes
+- `v`: compact base64url bitmask of selected countries
 - `l`: `en` or `ru`
 - `s`: `standard` or `dark`
+
+Legacy links with `c=FRA,JPN,RUS` are still supported, but new links are written with `v`.
 
 ## Setup
 
