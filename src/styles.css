@@ -96,7 +96,7 @@ button {
 .toolbar {
   position: fixed;
   top: 16px;
-  left: 50%;
+  right: 16px;
   z-index: 5;
   display: flex;
   gap: 8px;
@@ -106,7 +106,6 @@ button {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 18px 50px rgba(23, 32, 51, 0.12);
-  transform: translateX(-50%);
   backdrop-filter: blur(16px);
 }
 
@@ -125,20 +124,36 @@ button {
   white-space: nowrap;
 }
 
+.toolbar .toolbar-button {
+  width: 42px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+}
+
+.toolbar .toolbar-button--text {
+  width: auto;
+  min-width: 64px;
+  padding: 0 10px;
+}
+
+.toolbar svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
 .toolbar button:hover,
 .modal-tools button:hover,
 .icon-button:hover {
   background: #eef4f8;
 }
 
-.toolbar span {
-  min-width: 24px;
-  border-radius: 999px;
-  background: #172033;
-  color: #ffffff;
-  font-size: 0.82rem;
-  line-height: 24px;
-  text-align: center;
+.toolbar-button--text span {
+  color: #172033;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .status {
@@ -273,9 +288,9 @@ button {
 @media (max-width: 620px) {
   .toolbar {
     top: 10px;
+    right: 10px;
     flex-wrap: wrap;
-    justify-content: center;
-    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
   }
 
   .toolbar button {

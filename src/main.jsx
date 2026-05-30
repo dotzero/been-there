@@ -6,6 +6,12 @@ import enCountries from 'i18n-iso-countries/langs/en.json';
 import ruCountries from 'i18n-iso-countries/langs/ru.json';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import Download from 'lucide-react/dist/esm/icons/download';
+import Globe2 from 'lucide-react/dist/esm/icons/globe-2';
+import Languages from 'lucide-react/dist/esm/icons/languages';
+import LinkIcon from 'lucide-react/dist/esm/icons/link';
+import Moon from 'lucide-react/dist/esm/icons/moon';
+import Sun from 'lucide-react/dist/esm/icons/sun';
 import { feature } from 'topojson-client';
 import { COUNTRIES, COUNTRY_BY_CODE, COUNTRY_BY_NUMERIC, TINY_COUNTRY_CODES } from './countries.js';
 import './styles.css';
@@ -645,17 +651,51 @@ function App() {
       </section>
 
       <div className="toolbar" aria-label="Map actions">
-        <button type="button" onClick={() => setIsModalOpen(true)}>
-          {messages.countriesButton}
-          <span>{visited.size}</span>
+        <button
+          type="button"
+          className="toolbar-button"
+          onClick={() => setIsModalOpen(true)}
+          aria-label={messages.countriesButton}
+          title={messages.countriesButton}
+        >
+          <Globe2 aria-hidden="true" />
         </button>
-        <button type="button" onClick={copyShareLink}>{messages.copyLink}</button>
-        <button type="button" onClick={exportPng}>{messages.exportPng}</button>
-        <button type="button" onClick={toggleLanguage} aria-label={messages.languageLabel}>
-          {language.toUpperCase()}
+        <button
+          type="button"
+          className="toolbar-button"
+          onClick={copyShareLink}
+          aria-label={messages.copyLink}
+          title={messages.copyLink}
+        >
+          <LinkIcon aria-hidden="true" />
         </button>
-        <button type="button" onClick={toggleMapStyle} aria-label={messages.styleToggleLabel}>
-          {mapStyle === 'dark' ? 'Night' : 'Day'}
+        <button
+          type="button"
+          className="toolbar-button"
+          onClick={exportPng}
+          aria-label={messages.exportPng}
+          title={messages.exportPng}
+        >
+          <Download aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="toolbar-button toolbar-button--text"
+          onClick={toggleLanguage}
+          aria-label={messages.languageLabel}
+          title={messages.languageLabel}
+        >
+          <Languages aria-hidden="true" />
+          <span>{language.toUpperCase()}</span>
+        </button>
+        <button
+          type="button"
+          className="toolbar-button"
+          onClick={toggleMapStyle}
+          aria-label={messages.styleToggleLabel}
+          title={messages.styleToggleLabel}
+        >
+          {mapStyle === 'dark' ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
         </button>
       </div>
 
