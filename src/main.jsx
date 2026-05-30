@@ -60,6 +60,7 @@ const MESSAGES = {
     close: 'Close',
     searchPlaceholder: 'Search country or ISO code',
     clear: 'Clear',
+    selectAll: 'Select all',
     languageLabel: 'Switch language',
     styleToggleLabel: 'Switch day/night mode',
   },
@@ -82,6 +83,7 @@ const MESSAGES = {
     close: 'Закрыть',
     searchPlaceholder: 'Поиск страны или ISO-кода',
     clear: 'Очистить',
+    selectAll: 'Выделить все',
     languageLabel: 'Сменить язык',
     styleToggleLabel: 'Сменить режим день/ночь',
   },
@@ -493,6 +495,16 @@ function App() {
     });
   };
 
+  const toggleAllCountries = () => {
+    setVisited((current) => {
+      if (current.size === COUNTRIES.length) {
+        return new Set();
+      }
+
+      return new Set(COUNTRIES.map((country) => country.code));
+    });
+  };
+
   const copyShareLink = async () => {
     setCopyStatus('');
     try {
@@ -731,7 +743,9 @@ function App() {
                 placeholder={messages.searchPlaceholder}
                 autoFocus
               />
-              <button type="button" onClick={() => setVisited(new Set())}>{messages.clear}</button>
+              <button type="button" onClick={toggleAllCountries}>
+                {visited.size === COUNTRIES.length ? messages.clear : messages.selectAll}
+              </button>
             </div>
 
             <div className="country-list">
