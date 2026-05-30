@@ -373,9 +373,10 @@ function App() {
         center: [10, 18],
         zoom: 1.15,
         minZoom: 1,
+        maxZoom: 5,
         maxBounds: [
-          [-180, -85],
-          [180, 85],
+          [-180, -60],
+          [180, 82],
         ],
         projection: 'mercator',
         renderWorldCopies: false,
