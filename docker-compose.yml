@@ -1,0 +1,15 @@
+services:
+  been-there:
+    container_name: bt
+    build:
+      context: .
+      args:
+        MAPBOX_TOKEN: ${MAPBOX_TOKEN}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

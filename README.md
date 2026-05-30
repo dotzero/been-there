@@ -59,6 +59,14 @@ Create a production build:
 npm run build
 ```
 
+## Docker
+
+Build and run with Docker Compose:
+
+```bash
+MAPBOX_TOKEN=pk.your_public_mapbox_token_here docker compose up --build
+```
+
 ## License
 
 [MIT](https://opensource.org/license/mit)
