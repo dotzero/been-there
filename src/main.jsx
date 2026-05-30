@@ -388,6 +388,7 @@ function App() {
         renderWorldCopies: false,
         preserveDrawingBuffer: true,
         attributionControl: false,
+        logoPosition: 'bottom-right',
       });
     } catch {
       setRenderMode('svg');
@@ -397,8 +398,7 @@ function App() {
 
     mapboxRef.current = map;
     activeMapStyleRef.current = mapStyle;
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
-    map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left');
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
     const onLoad = () => addVisitedLayers(map, countriesGeoJson, visitedRef.current);
     const onError = () => {
