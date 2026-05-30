@@ -2,10 +2,7 @@
 set -eu
 
 token=${MAPBOX_TOKEN:-}
-escaped_token=$(printf '%s' "$token" | sed 's/\\/\\\\/g; s/"/\\"/g')
+json_token=$(printf '%s' "$token" | sed 's/\\/\\\\/g; s/'\''/\\'\''/g')
+sed_token=$(printf '%s' "$json_token" | sed 's/[&|]/\\&/g')
 
-cat > /usr/share/nginx/html/runtime-config.js <<EOF
-window.__RUNTIME_CONFIG__ = {
-  MAPBOX_TOKEN: "$escaped_token"
-};
-EOF
+sed -i "s|__MAPBOX_TOKEN__|$sed_token|g" /usr/share/nginx/html/index.html
