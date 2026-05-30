@@ -39,6 +39,7 @@ const VISITED_FILL_LAYER_ID = 'visited-country-fill';
 const VISITED_LINE_LAYER_ID = 'visited-country-line';
 const TINY_SOURCE_ID = 'visited-tiny-countries';
 const TINY_LAYER_ID = 'visited-tiny-country-markers';
+const VISITED_PATTERN_ID = 'visited-stripes';
 
 isoCountries.registerLocale(enCountries);
 isoCountries.registerLocale(ruCountries);
@@ -233,7 +234,39 @@ function getTinyCountriesGeoJson(visited) {
   };
 }
 
+function createVisitedPattern() {
+  const size = 16;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  canvas.width = size;
+  canvas.height = size;
+  context.clearRect(0, 0, size, size);
+  context.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+  context.lineWidth = 4;
+  context.lineCap = 'square';
+
+  for (let offset = -size; offset <= size * 2; offset += 8) {
+    context.beginPath();
+    context.moveTo(offset, size);
+    context.lineTo(offset + size, 0);
+    context.stroke();
+  }
+
+  return context.getImageData(0, 0, size, size);
+}
+
+function ensureVisitedPattern(map) {
+  if (map.hasImage(VISITED_PATTERN_ID)) {
+    return;
+  }
+
+  map.addImage(VISITED_PATTERN_ID, createVisitedPattern(), { pixelRatio: 2 });
+}
+
 function addVisitedLayers(map, countriesGeoJson, visited) {
+  ensureVisitedPattern(map);
+
   if (!map.getSource(COUNTRIES_SOURCE_ID)) {
     map.addSource(COUNTRIES_SOURCE_ID, {
       type: 'vector',
@@ -256,8 +289,8 @@ function addVisitedLayers(map, countriesGeoJson, visited) {
       'source-layer': MAPBOX_COUNTRIES_SOURCE_LAYER,
       filter: visitedBoundaryFilter,
       paint: {
-        'fill-color': '#38bdf8',
-        'fill-opacity': 0.5,
+        'fill-pattern': VISITED_PATTERN_ID,
+        'fill-opacity': 1,
       },
     });
   }
@@ -714,6 +747,11 @@ function App() {
             role="img"
             aria-label={messages.mapLabel}
           >
+            <defs>
+              <pattern id="visited-stripes" width="16" height="16" patternUnits="userSpaceOnUse">
+                <path d="M-4 16 16 -4M4 20 20 4" className="visited-stripe" />
+              </pattern>
+            </defs>
             <rect width={mapSize.width} height={mapSize.height} className="ocean" />
             {countriesGeoJson?.features.map((geo) => {
               const country = COUNTRY_BY_CODE.get(geo.properties.iso3);

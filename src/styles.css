@@ -75,7 +75,7 @@ button {
 }
 
 .country--visited {
-  fill: rgba(56, 189, 248, 0.5);
+  fill: url("#visited-stripes");
 }
 
 .country:hover {
@@ -83,7 +83,14 @@ button {
 }
 
 .country--visited:hover {
-  fill: rgba(56, 189, 248, 0.5);
+  fill: url("#visited-stripes");
+}
+
+.visited-stripe {
+  fill: none;
+  stroke: rgba(56, 189, 248, 0.5);
+  stroke-width: 4;
+  stroke-linecap: square;
 }
 
 .tiny-marker {
