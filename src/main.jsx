@@ -4,6 +4,8 @@ import { geoEqualEarth, geoPath } from 'd3-geo';
 import isoCountries from 'i18n-iso-countries';
 import enCountries from 'i18n-iso-countries/langs/en.json';
 import ruCountries from 'i18n-iso-countries/langs/ru.json';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { feature } from 'topojson-client';
 import { COUNTRIES, COUNTRY_BY_CODE, COUNTRY_BY_NUMERIC, TINY_COUNTRY_CODES } from './countries.js';
 import './styles.css';
@@ -13,6 +15,15 @@ const COUNTRIES_QUERY_KEY = 'c';
 const LANGUAGE_QUERY_KEY = 'l';
 const DEFAULT_LANGUAGE = 'en';
 const SUPPORTED_LANGUAGES = new Set(['en', 'ru']);
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const MAPBOX_STYLE = 'mapbox://styles/mapbox/streets-v12';
+const COUNTRIES_SOURCE_ID = 'visited-country-boundaries';
+const MAPBOX_COUNTRIES_SOURCE_URL = 'mapbox://mapbox.country-boundaries-v1';
+const MAPBOX_COUNTRIES_SOURCE_LAYER = 'country_boundaries';
+const VISITED_FILL_LAYER_ID = 'visited-country-fill';
+const VISITED_LINE_LAYER_ID = 'visited-country-line';
+const TINY_SOURCE_ID = 'visited-tiny-countries';
+const TINY_LAYER_ID = 'visited-tiny-country-markers';
 
 isoCountries.registerLocale(enCountries);
 isoCountries.registerLocale(ruCountries);
@@ -28,6 +39,8 @@ const MESSAGES = {
     exported: 'Exported',
     exportFailed: 'Export failed',
     mapError: 'Map data failed to load',
+    mapboxTokenMissing: 'Add VITE_MAPBOX_TOKEN to .env to use Mapbox',
+    webglFallback: 'WebGL is unavailable, showing the fallback map',
     mapStageLabel: 'World map of visited countries',
     mapLabel: 'World map',
     modalTitle: 'Visited countries',
@@ -47,6 +60,8 @@ const MESSAGES = {
     exported: 'Экспортировано',
     exportFailed: 'Не удалось экспортировать',
     mapError: 'Не удалось загрузить карту',
+    mapboxTokenMissing: 'Добавьте VITE_MAPBOX_TOKEN в .env, чтобы использовать Mapbox',
+    webglFallback: 'WebGL недоступен, показываю резервную карту',
     mapStageLabel: 'Карта мира с посещенными странами',
     mapLabel: 'Карта мира',
     modalTitle: 'Посещенные страны',
@@ -81,6 +96,126 @@ function getCountryName(country, language) {
   return isoCountries.getName(country.code, language) ?? country.name;
 }
 
+function getVisitedFilter(visited, propertyName = 'iso3') {
+  const codes = [...visited];
+
+  if (codes.length === 0) {
+    return ['==', ['get', propertyName], '__none__'];
+  }
+
+  return ['in', ['get', propertyName], ['literal', codes]];
+}
+
+function getTinyCountriesGeoJson(visited) {
+  return {
+    type: 'FeatureCollection',
+    features: TINY_COUNTRY_CODES
+      .map((code) => COUNTRY_BY_CODE.get(code))
+      .filter((country) => country && visited.has(country.code) && country.coordinates)
+      .map((country) => ({
+        type: 'Feature',
+        properties: {
+          iso3: country.code,
+          name: country.name,
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: country.coordinates,
+        },
+      })),
+  };
+}
+
+function addVisitedLayers(map, countriesGeoJson, visited) {
+  if (!map.getSource(COUNTRIES_SOURCE_ID)) {
+    map.addSource(COUNTRIES_SOURCE_ID, {
+      type: 'vector',
+      url: MAPBOX_COUNTRIES_SOURCE_URL,
+    });
+  }
+
+  const visitedBoundaryFilter = [
+    'all',
+    ['==', ['get', 'disputed'], 'false'],
+    getVisitedFilter(visited, 'iso_3166_1_alpha_3'),
+  ];
+
+  if (!map.getLayer(VISITED_FILL_LAYER_ID)) {
+    map.addLayer({
+      id: VISITED_FILL_LAYER_ID,
+      type: 'fill',
+      source: COUNTRIES_SOURCE_ID,
+      'source-layer': MAPBOX_COUNTRIES_SOURCE_LAYER,
+      filter: visitedBoundaryFilter,
+      paint: {
+        'fill-color': '#16a085',
+        'fill-opacity': 0.58,
+      },
+    });
+  }
+
+  if (!map.getLayer(VISITED_LINE_LAYER_ID)) {
+    map.addLayer({
+      id: VISITED_LINE_LAYER_ID,
+      type: 'line',
+      source: COUNTRIES_SOURCE_ID,
+      'source-layer': MAPBOX_COUNTRIES_SOURCE_LAYER,
+      filter: visitedBoundaryFilter,
+      paint: {
+        'line-color': '#0f766e',
+        'line-width': 1.4,
+        'line-opacity': 0.9,
+      },
+    });
+  }
+
+  if (!map.getSource(TINY_SOURCE_ID)) {
+    map.addSource(TINY_SOURCE_ID, {
+      type: 'geojson',
+      data: getTinyCountriesGeoJson(visited),
+    });
+  }
+
+  if (!map.getLayer(TINY_LAYER_ID)) {
+    map.addLayer({
+      id: TINY_LAYER_ID,
+      type: 'circle',
+      source: TINY_SOURCE_ID,
+      paint: {
+        'circle-color': '#facc15',
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4, 5, 7],
+        'circle-stroke-color': '#172033',
+        'circle-stroke-width': 1.2,
+      },
+    });
+  }
+}
+
+function updateVisitedLayers(map, visited) {
+  if (!map.loaded()) {
+    return;
+  }
+
+  const filter = [
+    'all',
+    ['==', ['get', 'disputed'], 'false'],
+    getVisitedFilter(visited, 'iso_3166_1_alpha_3'),
+  ];
+
+  if (map.getLayer(VISITED_FILL_LAYER_ID)) {
+    map.setFilter(VISITED_FILL_LAYER_ID, filter);
+  }
+
+  if (map.getLayer(VISITED_LINE_LAYER_ID)) {
+    map.setFilter(VISITED_LINE_LAYER_ID, filter);
+  }
+
+  const tinySource = map.getSource(TINY_SOURCE_ID);
+  if (tinySource) {
+    tinySource.setData(getTinyCountriesGeoJson(visited));
+  }
+}
+
 function writeStateToUrl(visited, language, languageExplicit) {
   const url = new URL(window.location.href);
   const codes = [...visited].sort();
@@ -107,11 +242,15 @@ function App() {
   const [query, setQuery] = React.useState('');
   const [copyStatus, setCopyStatus] = React.useState('');
   const [exportStatus, setExportStatus] = React.useState('');
-  const [geographies, setGeographies] = React.useState([]);
+  const [countriesGeoJson, setCountriesGeoJson] = React.useState(null);
   const [mapError, setMapError] = React.useState('');
+  const [renderMode, setRenderMode] = React.useState(MAPBOX_TOKEN ? 'mapbox' : 'svg');
   const [mapSize, setMapSize] = React.useState({ width: 1200, height: 760 });
   const mapRef = React.useRef(null);
+  const mapboxRef = React.useRef(null);
+  const mapboxContainerRef = React.useRef(null);
   const svgRef = React.useRef(null);
+  const visitedRef = React.useRef(visited);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -128,7 +267,29 @@ function App() {
           return;
         }
 
-        setGeographies(feature(topology, topology.objects.countries).features);
+        const features = feature(topology, topology.objects.countries).features
+          .map((geoFeature) => {
+            const country = COUNTRY_BY_NUMERIC.get(String(geoFeature.id).padStart(3, '0'));
+
+            if (!country) {
+              return null;
+            }
+
+            return {
+              ...geoFeature,
+              properties: {
+                ...geoFeature.properties,
+                iso3: country.code,
+                name: country.name,
+              },
+            };
+          })
+          .filter(Boolean);
+
+        setCountriesGeoJson({
+          type: 'FeatureCollection',
+          features,
+        });
       })
       .catch(() => {
         if (isMounted) {
@@ -161,6 +322,76 @@ function App() {
   React.useEffect(() => {
     writeStateToUrl(visited, language, languageExplicit);
   }, [language, languageExplicit, visited]);
+
+  React.useEffect(() => {
+    visitedRef.current = visited;
+  }, [visited]);
+
+  React.useEffect(() => {
+    if (!MAPBOX_TOKEN) {
+      setMapError('mapboxTokenMissing');
+      return undefined;
+    }
+
+    if (renderMode !== 'mapbox' || !mapboxContainerRef.current || !countriesGeoJson) {
+      return undefined;
+    }
+
+    setMapError('');
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+
+    let map;
+
+    try {
+      map = new mapboxgl.Map({
+        container: mapboxContainerRef.current,
+        style: MAPBOX_STYLE,
+        center: [10, 18],
+        zoom: 1.15,
+        minZoom: 1,
+        maxBounds: [
+          [-180, -85],
+          [180, 85],
+        ],
+        projection: 'mercator',
+        renderWorldCopies: false,
+        preserveDrawingBuffer: true,
+        attributionControl: false,
+      });
+    } catch {
+      setRenderMode('svg');
+      setMapError('webglFallback');
+      return undefined;
+    }
+
+    mapboxRef.current = map;
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left');
+
+    const onLoad = () => addVisitedLayers(map, countriesGeoJson, visitedRef.current);
+    const onError = () => {
+      setRenderMode('svg');
+      setMapError('mapError');
+    };
+
+    map.on('load', onLoad);
+    map.on('error', onError);
+
+    return () => {
+      mapboxRef.current = null;
+      map.remove();
+    };
+  }, [countriesGeoJson, renderMode]);
+
+  React.useEffect(() => {
+    const map = mapboxRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    updateVisitedLayers(map, visited);
+  }, [visited]);
 
   React.useEffect(() => {
     const onPopState = () => {
@@ -228,58 +459,67 @@ function App() {
   };
 
   const exportPng = async () => {
-    if (!svgRef.current) {
+    if (!svgRef.current && !mapboxRef.current) {
       return;
     }
 
     setExportStatus(messages.preparing);
 
     try {
-      const svg = svgRef.current;
-      const clone = svg.cloneNode(true);
-      const sourceNodes = [svg, ...svg.querySelectorAll('*')];
-      const cloneNodes = [clone, ...clone.querySelectorAll('*')];
+      let href;
 
-      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      clone.setAttribute('width', String(mapSize.width));
-      clone.setAttribute('height', String(mapSize.height));
+      if (mapboxRef.current) {
+        mapboxRef.current.triggerRepaint();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        href = mapboxRef.current.getCanvas().toDataURL('image/png');
+      } else {
+        const svg = svgRef.current;
+        const clone = svg.cloneNode(true);
+        const sourceNodes = [svg, ...svg.querySelectorAll('*')];
+        const cloneNodes = [clone, ...clone.querySelectorAll('*')];
 
-      sourceNodes.forEach((sourceNode, index) => {
-        const cloneNode = cloneNodes[index];
-        const styles = window.getComputedStyle(sourceNode);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clone.setAttribute('width', String(mapSize.width));
+        clone.setAttribute('height', String(mapSize.height));
 
-        cloneNode.setAttribute('fill', styles.fill);
-        cloneNode.setAttribute('stroke', styles.stroke);
-        cloneNode.setAttribute('stroke-width', styles.strokeWidth);
-        cloneNode.setAttribute('vector-effect', styles.vectorEffect);
-      });
+        sourceNodes.forEach((sourceNode, index) => {
+          const cloneNode = cloneNodes[index];
+          const styles = window.getComputedStyle(sourceNode);
 
-      const serializedSvg = new XMLSerializer().serializeToString(clone);
-      const blob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
-      const objectUrl = URL.createObjectURL(blob);
-      const image = new Image();
+          cloneNode.setAttribute('fill', styles.fill);
+          cloneNode.setAttribute('stroke', styles.stroke);
+          cloneNode.setAttribute('stroke-width', styles.strokeWidth);
+          cloneNode.setAttribute('vector-effect', styles.vectorEffect);
+        });
 
-      await new Promise((resolve, reject) => {
-        image.onload = resolve;
-        image.onerror = reject;
-        image.src = objectUrl;
-      });
+        const serializedSvg = new XMLSerializer().serializeToString(clone);
+        const blob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
+        const objectUrl = URL.createObjectURL(blob);
+        const image = new Image();
 
-      const scale = 2;
-      const canvas = document.createElement('canvas');
-      canvas.width = mapSize.width * scale;
-      canvas.height = mapSize.height * scale;
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          image.src = objectUrl;
+        });
 
-      const context = canvas.getContext('2d');
-      context.scale(scale, scale);
-      context.fillStyle = '#f8fafc';
-      context.fillRect(0, 0, mapSize.width, mapSize.height);
-      context.drawImage(image, 0, 0, mapSize.width, mapSize.height);
-      URL.revokeObjectURL(objectUrl);
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = mapSize.width * scale;
+        canvas.height = mapSize.height * scale;
+
+        const context = canvas.getContext('2d');
+        context.scale(scale, scale);
+        context.fillStyle = '#f8fafc';
+        context.fillRect(0, 0, mapSize.width, mapSize.height);
+        context.drawImage(image, 0, 0, mapSize.width, mapSize.height);
+        URL.revokeObjectURL(objectUrl);
+        href = canvas.toDataURL('image/png');
+      }
 
       const link = document.createElement('a');
       link.download = 'visited-countries.png';
-      link.href = canvas.toDataURL('image/png');
+      link.href = href;
       link.click();
       setExportStatus(messages.exported);
     } catch {
@@ -308,44 +548,50 @@ function App() {
   return (
     <main className="app-shell">
       <section ref={mapRef} className="map-stage" aria-label={messages.mapStageLabel}>
-        <svg
-          ref={svgRef}
-          className="world-map"
-          viewBox={`0 0 ${mapSize.width} ${mapSize.height}`}
-          role="img"
-          aria-label={messages.mapLabel}
-        >
-          <rect width={mapSize.width} height={mapSize.height} className="ocean" />
-          {geographies.map((geo) => {
-            const country = COUNTRY_BY_NUMERIC.get(String(geo.id).padStart(3, '0'));
-            const isVisited = country ? visited.has(country.code) : false;
+        {renderMode === 'mapbox' && (
+          <div ref={mapboxContainerRef} className="mapbox-map" role="img" aria-label={messages.mapLabel} />
+        )}
 
-            return (
-              <path
-                key={geo.id}
-                d={path(geo)}
-                className={isVisited ? 'country country--visited' : 'country'}
-              >
-                <title>{country ? getCountryName(country, language) : messages.mapLabel}</title>
-              </path>
-            );
-          })}
+        {renderMode === 'svg' && (
+          <svg
+            ref={svgRef}
+            className="world-map"
+            viewBox={`0 0 ${mapSize.width} ${mapSize.height}`}
+            role="img"
+            aria-label={messages.mapLabel}
+          >
+            <rect width={mapSize.width} height={mapSize.height} className="ocean" />
+            {countriesGeoJson?.features.map((geo) => {
+              const country = COUNTRY_BY_CODE.get(geo.properties.iso3);
+              const isVisited = country ? visited.has(country.code) : false;
 
-          {tinyVisited.map((country) => {
-            const point = projection(country.coordinates);
+              return (
+                <path
+                  key={geo.properties.iso3}
+                  d={path(geo)}
+                  className={isVisited ? 'country country--visited' : 'country'}
+                >
+                  <title>{country ? getCountryName(country, language) : messages.mapLabel}</title>
+                </path>
+              );
+            })}
 
-            if (!point) {
-              return null;
-            }
+            {tinyVisited.map((country) => {
+              const point = projection(country.coordinates);
 
-            return (
-              <g key={country.code} transform={`translate(${point[0]} ${point[1]})`}>
-                <circle r={4.5} className="tiny-marker" />
-                <title>{getCountryName(country, language)}</title>
-              </g>
-            );
-          })}
-        </svg>
+              if (!point) {
+                return null;
+              }
+
+              return (
+                <g key={country.code} transform={`translate(${point[0]} ${point[1]})`}>
+                  <circle r={4.5} className="tiny-marker" />
+                  <title>{getCountryName(country, language)}</title>
+                </g>
+              );
+            })}
+          </svg>
+        )}
         {mapError && <div className="map-error" role="alert">{messages[mapError]}</div>}
       </section>
 

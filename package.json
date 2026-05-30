@@ -12,6 +12,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "d3-geo": "^3.1.1",
     "i18n-iso-countries": "^7.14.0",
+    "mapbox-gl": "^3.24.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "topojson-client": "^3.1.0",
