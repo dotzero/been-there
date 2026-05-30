@@ -2,9 +2,6 @@ FROM node:26-alpine AS build
 
 WORKDIR /app
 
-ARG MAPBOX_TOKEN
-ENV MAPBOX_TOKEN=$MAPBOX_TOKEN
-
 COPY package*.json ./
 RUN npm ci
 
@@ -14,6 +11,8 @@ RUN npm run build
 FROM nginx:1.31-alpine
 
 COPY etc/nginx.conf /etc/nginx/conf.d/default.conf
+COPY etc/docker-entrypoint.d/10-runtime-config.sh /docker-entrypoint.d/10-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/10-runtime-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

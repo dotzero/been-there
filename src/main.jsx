@@ -26,7 +26,8 @@ const STYLE_QUERY_KEY = 's';
 const DEFAULT_LANGUAGE = 'en';
 const DEFAULT_MAP_STYLE = 'standard';
 const SUPPORTED_LANGUAGES = new Set(['en', 'ru']);
-const MAPBOX_TOKEN = import.meta.env.MAPBOX_TOKEN;
+const runtimeConfig = globalThis.__RUNTIME_CONFIG__ ?? {};
+const MAPBOX_TOKEN = runtimeConfig.MAPBOX_TOKEN || import.meta.env.MAPBOX_TOKEN;
 const MAPBOX_STYLES = {
   standard: 'mapbox://styles/mapbox/standard',
   dark: 'mapbox://styles/mapbox/dark-v11',
