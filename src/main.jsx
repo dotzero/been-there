@@ -494,6 +494,19 @@ function App() {
   }, [language, languageExplicit, mapStyle, mapStyleExplicit, visited]);
 
   React.useEffect(() => {
+    if (!copyStatus && !exportStatus) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCopyStatus('');
+      setExportStatus('');
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [copyStatus, exportStatus]);
+
+  React.useEffect(() => {
     visitedRef.current = visited;
   }, [visited]);
 
