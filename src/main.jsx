@@ -150,6 +150,7 @@ function addVisitedLayers(map, countriesGeoJson, visited) {
   const visitedBoundaryFilter = [
     'all',
     ['==', ['get', 'disputed'], 'false'],
+    ['any', ['==', 'all', ['get', 'worldview']], ['in', 'US', ['get', 'worldview']]],
     getVisitedFilter(visited, 'iso_3166_1_alpha_3'),
   ];
 
@@ -161,8 +162,8 @@ function addVisitedLayers(map, countriesGeoJson, visited) {
       'source-layer': MAPBOX_COUNTRIES_SOURCE_LAYER,
       filter: visitedBoundaryFilter,
       paint: {
-        'fill-color': '#16a085',
-        'fill-opacity': 0.58,
+        'fill-color': '#38bdf8',
+        'fill-opacity': 0.5,
       },
     });
   }
@@ -175,9 +176,9 @@ function addVisitedLayers(map, countriesGeoJson, visited) {
       'source-layer': MAPBOX_COUNTRIES_SOURCE_LAYER,
       filter: visitedBoundaryFilter,
       paint: {
-        'line-color': '#0f766e',
-        'line-width': 1.4,
-        'line-opacity': 0.9,
+        'line-color': '#38bdf8',
+        'line-width': 0.8,
+        'line-opacity': 0.5,
       },
     });
   }
@@ -195,9 +196,11 @@ function addVisitedLayers(map, countriesGeoJson, visited) {
       type: 'circle',
       source: TINY_SOURCE_ID,
       paint: {
-        'circle-color': '#facc15',
+        'circle-color': '#38bdf8',
+        'circle-opacity': 0.5,
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4, 5, 7],
-        'circle-stroke-color': '#172033',
+        'circle-stroke-color': '#38bdf8',
+        'circle-stroke-opacity': 0.5,
         'circle-stroke-width': 1.2,
       },
     });
@@ -212,6 +215,7 @@ function updateVisitedLayers(map, visited) {
   const filter = [
     'all',
     ['==', ['get', 'disputed'], 'false'],
+    ['any', ['==', 'all', ['get', 'worldview']], ['in', 'US', ['get', 'worldview']]],
     getVisitedFilter(visited, 'iso_3166_1_alpha_3'),
   ];
 

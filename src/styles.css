@@ -75,7 +75,7 @@ button {
 }
 
 .country--visited {
-  fill: #16a085;
+  fill: rgba(56, 189, 248, 0.5);
 }
 
 .country:hover {
@@ -83,12 +83,12 @@ button {
 }
 
 .country--visited:hover {
-  fill: #12846e;
+  fill: rgba(56, 189, 248, 0.5);
 }
 
 .tiny-marker {
-  fill: #f4b942;
-  stroke: #172033;
+  fill: rgba(56, 189, 248, 0.5);
+  stroke: rgba(56, 189, 248, 0.5);
   stroke-width: 0.6;
   vector-effect: non-scaling-stroke;
 }
