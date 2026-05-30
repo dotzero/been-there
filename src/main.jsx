@@ -803,11 +803,6 @@ function App() {
             role="img"
             aria-label={messages.mapLabel}
           >
-            <defs>
-              <pattern id="visited-stripes" width="16" height="16" patternUnits="userSpaceOnUse">
-                <path d="M-4 16 16 -4M4 20 20 4" className="visited-stripe" />
-              </pattern>
-            </defs>
             <rect width={mapSize.width} height={mapSize.height} className="ocean" />
             {countriesGeoJson?.features.map((geo) => {
               const country = COUNTRY_BY_CODE.get(geo.properties.iso3);
