@@ -179,6 +179,24 @@ function decodeLegacyCountries(value) {
   return new Set(codes);
 }
 
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+async function drawLogoOnCanvas(context, scale = 1) {
+  const logo = await loadImage('/logo.png');
+  const width = Math.min(95, Math.max(56, window.innerWidth * 0.065));
+  const height = width * (logo.naturalHeight / logo.naturalWidth);
+
+  context.drawImage(logo, 16 * scale, 16 * scale, width * scale, height * scale);
+}
+
 function parseStateFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const rawVisited = params.get(VISITED_QUERY_KEY);
@@ -658,7 +676,15 @@ function App() {
       if (mapboxRef.current) {
         mapboxRef.current.triggerRepaint();
         await new Promise((resolve) => requestAnimationFrame(resolve));
-        href = mapboxRef.current.getCanvas().toDataURL('image/png');
+        const mapCanvas = mapboxRef.current.getCanvas();
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+
+        canvas.width = mapCanvas.width;
+        canvas.height = mapCanvas.height;
+        context.drawImage(mapCanvas, 0, 0);
+        await drawLogoOnCanvas(context, mapCanvas.width / mapCanvas.clientWidth);
+        href = canvas.toDataURL('image/png');
       } else {
         const svg = svgRef.current;
         const clone = svg.cloneNode(true);
@@ -700,6 +726,7 @@ function App() {
         context.fillStyle = '#f8fafc';
         context.fillRect(0, 0, mapSize.width, mapSize.height);
         context.drawImage(image, 0, 0, mapSize.width, mapSize.height);
+        await drawLogoOnCanvas(context, scale);
         URL.revokeObjectURL(objectUrl);
         href = canvas.toDataURL('image/png');
       }
