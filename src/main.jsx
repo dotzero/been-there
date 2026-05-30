@@ -23,7 +23,7 @@ const STYLE_QUERY_KEY = 's';
 const DEFAULT_LANGUAGE = 'en';
 const DEFAULT_MAP_STYLE = 'standard';
 const SUPPORTED_LANGUAGES = new Set(['en', 'ru']);
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const MAPBOX_TOKEN = import.meta.env.MAPBOX_TOKEN;
 const MAPBOX_STYLES = {
   standard: 'mapbox://styles/mapbox/standard',
   dark: 'mapbox://styles/mapbox/dark-v11',
@@ -51,11 +51,11 @@ const MESSAGES = {
     exported: 'Exported',
     exportFailed: 'Export failed',
     mapError: 'Map data failed to load',
-    mapboxTokenMissing: 'Add VITE_MAPBOX_TOKEN to .env to use Mapbox',
+    mapboxTokenMissing: 'Add MAPBOX_TOKEN to .env to use Mapbox',
     webglFallback: 'WebGL is unavailable, showing the fallback map',
-    mapStageLabel: 'World map of visited countries',
+    mapStageLabel: 'Been There world map',
     mapLabel: 'World map',
-    modalTitle: 'Visited countries',
+    modalTitle: 'Been There',
     modalSummary: (selected, total) => `${selected} of ${total} UN member states selected`,
     close: 'Close',
     searchPlaceholder: 'Search country or ISO code',
@@ -74,7 +74,7 @@ const MESSAGES = {
     exported: 'Экспортировано',
     exportFailed: 'Не удалось экспортировать',
     mapError: 'Не удалось загрузить карту',
-    mapboxTokenMissing: 'Добавьте VITE_MAPBOX_TOKEN в .env, чтобы использовать Mapbox',
+    mapboxTokenMissing: 'Добавьте MAPBOX_TOKEN в .env, чтобы использовать Mapbox',
     webglFallback: 'WebGL недоступен, показываю резервную карту',
     mapStageLabel: 'Карта мира с посещенными странами',
     mapLabel: 'Карта мира',
