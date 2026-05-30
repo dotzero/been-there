@@ -61,6 +61,20 @@ npm run build
 
 ## Docker
 
+Run the published image from GitHub Container Registry:
+
+```bash
+docker run --rm -p 8080:80 ghcr.io/dotzero/been-there:latest
+```
+
+Open:
+
+```text
+http://localhost:8080/
+```
+
+The published image is built **without** a Mapbox token. To use Mapbox tiles, build your own image with a token.
+
 Build and run with Docker Compose:
 
 ```bash
