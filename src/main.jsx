@@ -13,10 +13,16 @@ import './styles.css';
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 const COUNTRIES_QUERY_KEY = 'c';
 const LANGUAGE_QUERY_KEY = 'l';
+const STYLE_QUERY_KEY = 's';
 const DEFAULT_LANGUAGE = 'en';
+const DEFAULT_MAP_STYLE = 'standard';
 const SUPPORTED_LANGUAGES = new Set(['en', 'ru']);
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-const MAPBOX_STYLE = 'mapbox://styles/mapbox/streets-v12';
+const MAPBOX_STYLES = {
+  standard: 'mapbox://styles/mapbox/standard',
+  dark: 'mapbox://styles/mapbox/dark-v11',
+};
+const SUPPORTED_MAP_STYLES = new Set(Object.keys(MAPBOX_STYLES));
 const COUNTRIES_SOURCE_ID = 'visited-country-boundaries';
 const MAPBOX_COUNTRIES_SOURCE_URL = 'mapbox://mapbox.country-boundaries-v1';
 const MAPBOX_COUNTRIES_SOURCE_LAYER = 'country_boundaries';
@@ -49,6 +55,7 @@ const MESSAGES = {
     searchPlaceholder: 'Search country or ISO code',
     clear: 'Clear',
     languageLabel: 'Switch language',
+    styleToggleLabel: 'Switch day/night mode',
   },
   ru: {
     countriesButton: 'Страны',
@@ -70,6 +77,7 @@ const MESSAGES = {
     searchPlaceholder: 'Поиск страны или ISO-кода',
     clear: 'Очистить',
     languageLabel: 'Сменить язык',
+    styleToggleLabel: 'Сменить режим день/ночь',
   },
 };
 
@@ -77,8 +85,11 @@ function parseStateFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const rawCountries = params.get(COUNTRIES_QUERY_KEY);
   const rawLanguage = params.get(LANGUAGE_QUERY_KEY)?.toLowerCase();
+  const rawMapStyle = params.get(STYLE_QUERY_KEY);
   const language = SUPPORTED_LANGUAGES.has(rawLanguage) ? rawLanguage : DEFAULT_LANGUAGE;
   const languageExplicit = params.has(LANGUAGE_QUERY_KEY);
+  const mapStyle = SUPPORTED_MAP_STYLES.has(rawMapStyle) ? rawMapStyle : DEFAULT_MAP_STYLE;
+  const mapStyleExplicit = params.has(STYLE_QUERY_KEY);
 
   const codes = (rawCountries ?? '')
     .split(',')
@@ -88,6 +99,8 @@ function parseStateFromUrl() {
   return {
     language,
     languageExplicit,
+    mapStyle,
+    mapStyleExplicit,
     visited: new Set(codes),
   };
 }
@@ -216,7 +229,7 @@ function updateVisitedLayers(map, visited) {
   }
 }
 
-function writeStateToUrl(visited, language, languageExplicit) {
+function writeStateToUrl(visited, language, languageExplicit, mapStyle, mapStyleExplicit) {
   const url = new URL(window.location.href);
   const codes = [...visited].sort();
   const queryParts = [];
@@ -229,6 +242,10 @@ function writeStateToUrl(visited, language, languageExplicit) {
     queryParts.push(`${LANGUAGE_QUERY_KEY}=${language}`);
   }
 
+  if (mapStyleExplicit || mapStyle !== DEFAULT_MAP_STYLE) {
+    queryParts.push(`${STYLE_QUERY_KEY}=${mapStyle}`);
+  }
+
   url.search = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
@@ -238,6 +255,8 @@ function App() {
   const [visited, setVisited] = React.useState(initialUrlState.visited);
   const [language, setLanguage] = React.useState(initialUrlState.language);
   const [languageExplicit, setLanguageExplicit] = React.useState(initialUrlState.languageExplicit);
+  const [mapStyle, setMapStyle] = React.useState(initialUrlState.mapStyle);
+  const [mapStyleExplicit, setMapStyleExplicit] = React.useState(initialUrlState.mapStyleExplicit);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [copyStatus, setCopyStatus] = React.useState('');
@@ -249,6 +268,7 @@ function App() {
   const mapRef = React.useRef(null);
   const mapboxRef = React.useRef(null);
   const mapboxContainerRef = React.useRef(null);
+  const activeMapStyleRef = React.useRef(null);
   const svgRef = React.useRef(null);
   const visitedRef = React.useRef(visited);
 
@@ -320,8 +340,8 @@ function App() {
   }, []);
 
   React.useEffect(() => {
-    writeStateToUrl(visited, language, languageExplicit);
-  }, [language, languageExplicit, visited]);
+    writeStateToUrl(visited, language, languageExplicit, mapStyle, mapStyleExplicit);
+  }, [language, languageExplicit, mapStyle, mapStyleExplicit, visited]);
 
   React.useEffect(() => {
     visitedRef.current = visited;
@@ -345,7 +365,7 @@ function App() {
     try {
       map = new mapboxgl.Map({
         container: mapboxContainerRef.current,
-        style: MAPBOX_STYLE,
+        style: MAPBOX_STYLES[mapStyle],
         center: [10, 18],
         zoom: 1.15,
         minZoom: 1,
@@ -365,6 +385,7 @@ function App() {
     }
 
     mapboxRef.current = map;
+    activeMapStyleRef.current = mapStyle;
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left');
 
@@ -379,9 +400,25 @@ function App() {
 
     return () => {
       mapboxRef.current = null;
+      activeMapStyleRef.current = null;
       map.remove();
     };
   }, [countriesGeoJson, renderMode]);
+
+  React.useEffect(() => {
+    const map = mapboxRef.current;
+
+    if (!map || !countriesGeoJson || activeMapStyleRef.current === mapStyle) {
+      return;
+    }
+
+    activeMapStyleRef.current = mapStyle;
+    map.setStyle(MAPBOX_STYLES[mapStyle]);
+    map.once('style.load', () => {
+      addVisitedLayers(map, countriesGeoJson, visitedRef.current);
+      updateVisitedLayers(map, visitedRef.current);
+    });
+  }, [countriesGeoJson, mapStyle]);
 
   React.useEffect(() => {
     const map = mapboxRef.current;
@@ -399,6 +436,8 @@ function App() {
       setVisited(nextState.visited);
       setLanguage(nextState.language);
       setLanguageExplicit(nextState.languageExplicit);
+      setMapStyle(nextState.mapStyle);
+      setMapStyleExplicit(nextState.mapStyleExplicit);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -456,6 +495,11 @@ function App() {
   const toggleLanguage = () => {
     setLanguage((current) => (current === 'en' ? 'ru' : 'en'));
     setLanguageExplicit(true);
+  };
+
+  const toggleMapStyle = () => {
+    setMapStyle((current) => (current === 'standard' ? 'dark' : 'standard'));
+    setMapStyleExplicit(true);
   };
 
   const exportPng = async () => {
@@ -604,6 +648,9 @@ function App() {
         <button type="button" onClick={exportPng}>{messages.exportPng}</button>
         <button type="button" onClick={toggleLanguage} aria-label={messages.languageLabel}>
           {language.toUpperCase()}
+        </button>
+        <button type="button" onClick={toggleMapStyle} aria-label={messages.styleToggleLabel}>
+          {mapStyle === 'dark' ? 'Night' : 'Day'}
         </button>
       </div>
 
