@@ -120,6 +120,23 @@ button {
   backdrop-filter: blur(16px);
 }
 
+.toolbar-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 5;
+  width: 42px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid rgba(23, 32, 51, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #172033;
+  box-shadow: 0 18px 50px rgba(23, 32, 51, 0.12);
+  backdrop-filter: blur(16px);
+}
+
 .toolbar button,
 .modal-tools button {
   display: inline-flex;
@@ -155,6 +172,7 @@ button {
 }
 
 .toolbar button:hover,
+.toolbar-toggle:hover,
 .modal-tools button:hover,
 .icon-button:hover {
   background: #eef4f8;
@@ -308,6 +326,11 @@ button {
     right: 10px;
     flex-wrap: wrap;
     max-width: calc(100vw - 20px);
+  }
+
+  .toolbar-toggle {
+    top: 10px;
+    right: 10px;
   }
 
   .toolbar button {

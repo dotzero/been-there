@@ -7,6 +7,8 @@ import ruCountries from 'i18n-iso-countries/langs/ru.json';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import Download from 'lucide-react/dist/esm/icons/download';
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import Globe2 from 'lucide-react/dist/esm/icons/globe-2';
 import Languages from 'lucide-react/dist/esm/icons/languages';
 import LinkIcon from 'lucide-react/dist/esm/icons/link';
@@ -68,6 +70,8 @@ const MESSAGES = {
     selectAll: 'Select all',
     languageLabel: 'Switch language',
     styleToggleLabel: 'Switch day/night mode',
+    collapseToolbar: 'Hide toolbar',
+    expandToolbar: 'Show toolbar',
   },
   ru: {
     countriesButton: 'Страны',
@@ -91,6 +95,8 @@ const MESSAGES = {
     selectAll: 'Выделить все',
     languageLabel: 'Сменить язык',
     styleToggleLabel: 'Сменить режим день/ночь',
+    collapseToolbar: 'Скрыть панель',
+    expandToolbar: 'Показать панель',
   },
 };
 
@@ -351,6 +357,7 @@ function App() {
   const [mapStyleExplicit, setMapStyleExplicit] = React.useState(initialUrlState.mapStyleExplicit);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
+  const [isToolbarCollapsed, setIsToolbarCollapsed] = React.useState(true);
   const [copyStatus, setCopyStatus] = React.useState('');
   const [exportStatus, setExportStatus] = React.useState('');
   const [countriesGeoJson, setCountriesGeoJson] = React.useState(null);
@@ -744,54 +751,75 @@ function App() {
 
       <img className="app-logo" src="/logo.png" alt="Been There" />
 
-      <div className="toolbar" aria-label="Map actions">
+      {isToolbarCollapsed ? (
         <button
           type="button"
-          className="toolbar-button"
-          onClick={() => setIsModalOpen(true)}
-          aria-label={messages.countriesButton}
-          title={messages.countriesButton}
+          className="toolbar-toggle"
+          onClick={() => setIsToolbarCollapsed(false)}
+          aria-label={messages.expandToolbar}
+          title={messages.expandToolbar}
         >
-          <Globe2 aria-hidden="true" />
+          <ChevronLeft aria-hidden="true" />
         </button>
-        <button
-          type="button"
-          className="toolbar-button"
-          onClick={copyShareLink}
-          aria-label={messages.copyLink}
-          title={messages.copyLink}
-        >
-          <LinkIcon aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="toolbar-button"
-          onClick={exportPng}
-          aria-label={messages.exportPng}
-          title={messages.exportPng}
-        >
-          <Download aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="toolbar-button toolbar-button--text"
-          onClick={toggleLanguage}
-          aria-label={messages.languageLabel}
-          title={messages.languageLabel}
-        >
-          <Languages aria-hidden="true" />
-          <span>{language.toUpperCase()}</span>
-        </button>
-        <button
-          type="button"
-          className="toolbar-button"
-          onClick={toggleMapStyle}
-          aria-label={messages.styleToggleLabel}
-          title={messages.styleToggleLabel}
-        >
-          {mapStyle === 'dark' ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
-        </button>
-      </div>
+      ) : (
+        <div className="toolbar" aria-label="Map actions">
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={() => setIsToolbarCollapsed(true)}
+            aria-label={messages.collapseToolbar}
+            title={messages.collapseToolbar}
+          >
+            <ChevronRight aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={() => setIsModalOpen(true)}
+            aria-label={messages.countriesButton}
+            title={messages.countriesButton}
+          >
+            <Globe2 aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={copyShareLink}
+            aria-label={messages.copyLink}
+            title={messages.copyLink}
+          >
+            <LinkIcon aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={exportPng}
+            aria-label={messages.exportPng}
+            title={messages.exportPng}
+          >
+            <Download aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="toolbar-button toolbar-button--text"
+            onClick={toggleLanguage}
+            aria-label={messages.languageLabel}
+            title={messages.languageLabel}
+          >
+            <Languages aria-hidden="true" />
+            <span>{language.toUpperCase()}</span>
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={toggleMapStyle}
+            aria-label={messages.styleToggleLabel}
+            title={messages.styleToggleLabel}
+          >
+            {mapStyle === 'dark' ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
+          </button>
+        </div>
+      )}
 
       {(copyStatus || exportStatus) && (
         <div className="status" role="status">
