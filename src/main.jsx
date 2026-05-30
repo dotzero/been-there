@@ -1,45 +1,108 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { geoEqualEarth, geoPath } from 'd3-geo';
+import isoCountries from 'i18n-iso-countries';
+import enCountries from 'i18n-iso-countries/langs/en.json';
+import ruCountries from 'i18n-iso-countries/langs/ru.json';
 import { feature } from 'topojson-client';
 import { COUNTRIES, COUNTRY_BY_CODE, COUNTRY_BY_NUMERIC, TINY_COUNTRY_CODES } from './countries.js';
 import './styles.css';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
-const QUERY_KEY = 'c';
+const COUNTRIES_QUERY_KEY = 'c';
+const LANGUAGE_QUERY_KEY = 'l';
+const DEFAULT_LANGUAGE = 'en';
+const SUPPORTED_LANGUAGES = new Set(['en', 'ru']);
 
-function parseVisitedFromUrl() {
+isoCountries.registerLocale(enCountries);
+isoCountries.registerLocale(ruCountries);
+
+const MESSAGES = {
+  en: {
+    countriesButton: 'Countries',
+    copyLink: 'Copy link',
+    copied: 'Link copied',
+    copyFailed: 'Copy failed',
+    exportPng: 'Export PNG',
+    preparing: 'Preparing...',
+    exported: 'Exported',
+    exportFailed: 'Export failed',
+    mapError: 'Map data failed to load',
+    mapStageLabel: 'World map of visited countries',
+    mapLabel: 'World map',
+    modalTitle: 'Visited countries',
+    modalSummary: (selected, total) => `${selected} of ${total} UN member states selected`,
+    close: 'Close',
+    searchPlaceholder: 'Search country or ISO code',
+    clear: 'Clear',
+    languageLabel: 'Switch language',
+  },
+  ru: {
+    countriesButton: 'Страны',
+    copyLink: 'Скопировать ссылку',
+    copied: 'Ссылка скопирована',
+    copyFailed: 'Не удалось скопировать',
+    exportPng: 'Экспорт PNG',
+    preparing: 'Готовлю...',
+    exported: 'Экспортировано',
+    exportFailed: 'Не удалось экспортировать',
+    mapError: 'Не удалось загрузить карту',
+    mapStageLabel: 'Карта мира с посещенными странами',
+    mapLabel: 'Карта мира',
+    modalTitle: 'Посещенные страны',
+    modalSummary: (selected, total) => `Выбрано ${selected} из ${total} стран ООН`,
+    close: 'Закрыть',
+    searchPlaceholder: 'Поиск страны или ISO-кода',
+    clear: 'Очистить',
+    languageLabel: 'Сменить язык',
+  },
+};
+
+function parseStateFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const raw = params.get(QUERY_KEY);
+  const rawCountries = params.get(COUNTRIES_QUERY_KEY);
+  const rawLanguage = params.get(LANGUAGE_QUERY_KEY)?.toLowerCase();
+  const language = SUPPORTED_LANGUAGES.has(rawLanguage) ? rawLanguage : DEFAULT_LANGUAGE;
+  const languageExplicit = params.has(LANGUAGE_QUERY_KEY);
 
-  if (!raw) {
-    return new Set();
-  }
-
-  const codes = raw
+  const codes = (rawCountries ?? '')
     .split(',')
     .map((code) => code.trim().toUpperCase())
     .filter((code) => COUNTRY_BY_CODE.has(code));
 
-  return new Set(codes);
+  return {
+    language,
+    languageExplicit,
+    visited: new Set(codes),
+  };
 }
 
-function writeVisitedToUrl(visited) {
+function getCountryName(country, language) {
+  return isoCountries.getName(country.code, language) ?? country.name;
+}
+
+function writeStateToUrl(visited, language, languageExplicit) {
   const url = new URL(window.location.href);
   const codes = [...visited].sort();
-  const queryValue = codes.join(',');
+  const queryParts = [];
 
   if (codes.length > 0) {
-    url.search = `${QUERY_KEY}=${queryValue}`;
-  } else {
-    url.search = '';
+    queryParts.push(`${COUNTRIES_QUERY_KEY}=${codes.join(',')}`);
   }
 
+  if (languageExplicit || language !== DEFAULT_LANGUAGE) {
+    queryParts.push(`${LANGUAGE_QUERY_KEY}=${language}`);
+  }
+
+  url.search = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 function App() {
-  const [visited, setVisited] = React.useState(parseVisitedFromUrl);
+  const initialUrlState = React.useMemo(parseStateFromUrl, []);
+  const [visited, setVisited] = React.useState(initialUrlState.visited);
+  const [language, setLanguage] = React.useState(initialUrlState.language);
+  const [languageExplicit, setLanguageExplicit] = React.useState(initialUrlState.languageExplicit);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [copyStatus, setCopyStatus] = React.useState('');
@@ -69,7 +132,7 @@ function App() {
       })
       .catch(() => {
         if (isMounted) {
-          setMapError('Map data failed to load');
+          setMapError('mapError');
         }
       });
 
@@ -96,28 +159,44 @@ function App() {
   }, []);
 
   React.useEffect(() => {
-    writeVisitedToUrl(visited);
-  }, [visited]);
+    writeStateToUrl(visited, language, languageExplicit);
+  }, [language, languageExplicit, visited]);
 
   React.useEffect(() => {
-    const onPopState = () => setVisited(parseVisitedFromUrl());
+    const onPopState = () => {
+      const nextState = parseStateFromUrl();
+      setVisited(nextState.visited);
+      setLanguage(nextState.language);
+      setLanguageExplicit(nextState.languageExplicit);
+    };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  const messages = MESSAGES[language];
   const normalizedQuery = query.trim().toLowerCase();
+  const localizedCountries = React.useMemo(() => {
+    return COUNTRIES
+      .map((country) => ({
+        ...country,
+        displayName: getCountryName(country, language),
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, language));
+  }, [language]);
+
   const filteredCountries = React.useMemo(() => {
     if (!normalizedQuery) {
-      return COUNTRIES;
+      return localizedCountries;
     }
 
-    return COUNTRIES.filter((country) => {
+    return localizedCountries.filter((country) => {
       return (
+        country.displayName.toLowerCase().includes(normalizedQuery) ||
         country.name.toLowerCase().includes(normalizedQuery) ||
         country.code.toLowerCase().includes(normalizedQuery)
       );
     });
-  }, [normalizedQuery]);
+  }, [localizedCountries, normalizedQuery]);
 
   const toggleCountry = (code) => {
     setVisited((current) => {
@@ -137,10 +216,15 @@ function App() {
     setCopyStatus('');
     try {
       await navigator.clipboard.writeText(window.location.href);
-      setCopyStatus('Link copied');
+      setCopyStatus(messages.copied);
     } catch {
-      setCopyStatus('Copy failed');
+      setCopyStatus(messages.copyFailed);
     }
+  };
+
+  const toggleLanguage = () => {
+    setLanguage((current) => (current === 'en' ? 'ru' : 'en'));
+    setLanguageExplicit(true);
   };
 
   const exportPng = async () => {
@@ -148,7 +232,7 @@ function App() {
       return;
     }
 
-    setExportStatus('Preparing...');
+    setExportStatus(messages.preparing);
 
     try {
       const svg = svgRef.current;
@@ -197,9 +281,9 @@ function App() {
       link.download = 'visited-countries.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
-      setExportStatus('Exported');
+      setExportStatus(messages.exported);
     } catch {
-      setExportStatus('Export failed');
+      setExportStatus(messages.exportFailed);
     }
   };
 
@@ -223,13 +307,13 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section ref={mapRef} className="map-stage" aria-label="World map of visited countries">
+      <section ref={mapRef} className="map-stage" aria-label={messages.mapStageLabel}>
         <svg
           ref={svgRef}
           className="world-map"
           viewBox={`0 0 ${mapSize.width} ${mapSize.height}`}
           role="img"
-          aria-label="World map"
+          aria-label={messages.mapLabel}
         >
           <rect width={mapSize.width} height={mapSize.height} className="ocean" />
           {geographies.map((geo) => {
@@ -242,7 +326,7 @@ function App() {
                 d={path(geo)}
                 className={isVisited ? 'country country--visited' : 'country'}
               >
-                <title>{country?.name ?? 'Country'}</title>
+                <title>{country ? getCountryName(country, language) : messages.mapLabel}</title>
               </path>
             );
           })}
@@ -257,21 +341,24 @@ function App() {
             return (
               <g key={country.code} transform={`translate(${point[0]} ${point[1]})`}>
                 <circle r={4.5} className="tiny-marker" />
-                <title>{country.name}</title>
+                <title>{getCountryName(country, language)}</title>
               </g>
             );
           })}
         </svg>
-        {mapError && <div className="map-error" role="alert">{mapError}</div>}
+        {mapError && <div className="map-error" role="alert">{messages[mapError]}</div>}
       </section>
 
       <div className="toolbar" aria-label="Map actions">
         <button type="button" onClick={() => setIsModalOpen(true)}>
-          Countries
+          {messages.countriesButton}
           <span>{visited.size}</span>
         </button>
-        <button type="button" onClick={copyShareLink}>Copy link</button>
-        <button type="button" onClick={exportPng}>Export PNG</button>
+        <button type="button" onClick={copyShareLink}>{messages.copyLink}</button>
+        <button type="button" onClick={exportPng}>{messages.exportPng}</button>
+        <button type="button" onClick={toggleLanguage} aria-label={messages.languageLabel}>
+          {language.toUpperCase()}
+        </button>
       </div>
 
       {(copyStatus || exportStatus) && (
@@ -291,10 +378,10 @@ function App() {
           >
             <header className="modal-header">
               <div>
-                <h1 id="countries-title">Visited countries</h1>
-                <p>{visited.size} of {COUNTRIES.length} UN member states selected</p>
+                <h1 id="countries-title">{messages.modalTitle}</h1>
+                <p>{messages.modalSummary(visited.size, COUNTRIES.length)}</p>
               </div>
-              <button type="button" className="icon-button" aria-label="Close" onClick={() => setIsModalOpen(false)}>
+              <button type="button" className="icon-button" aria-label={messages.close} onClick={() => setIsModalOpen(false)}>
                 ×
               </button>
             </header>
@@ -303,10 +390,10 @@ function App() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search country or ISO code"
+                placeholder={messages.searchPlaceholder}
                 autoFocus
               />
-              <button type="button" onClick={() => setVisited(new Set())}>Clear</button>
+              <button type="button" onClick={() => setVisited(new Set())}>{messages.clear}</button>
             </div>
 
             <div className="country-list">
@@ -317,7 +404,7 @@ function App() {
                     checked={visited.has(country.code)}
                     onChange={() => toggleCountry(country.code)}
                   />
-                  <span>{country.name}</span>
+                  <span>{country.displayName}</span>
                   <small>{country.code}</small>
                 </label>
               ))}
