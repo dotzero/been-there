@@ -28,11 +28,12 @@ function parseVisitedFromUrl() {
 function writeVisitedToUrl(visited) {
   const url = new URL(window.location.href);
   const codes = [...visited].sort();
+  const queryValue = codes.join(',');
 
   if (codes.length > 0) {
-    url.searchParams.set(QUERY_KEY, codes.join(','));
+    url.search = `${QUERY_KEY}=${queryValue}`;
   } else {
-    url.searchParams.delete(QUERY_KEY);
+    url.search = '';
   }
 
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
