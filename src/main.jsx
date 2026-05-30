@@ -1,7 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { geoEqualEarth, geoPath } from 'd3-geo';
-import { toPng } from 'html-to-image';
 import { feature } from 'topojson-client';
 import { COUNTRIES, COUNTRY_BY_CODE, COUNTRY_BY_NUMERIC, TINY_COUNTRY_CODES } from './countries.js';
 import './styles.css';
@@ -49,6 +48,7 @@ function App() {
   const [mapError, setMapError] = React.useState('');
   const [mapSize, setMapSize] = React.useState({ width: 1200, height: 760 });
   const mapRef = React.useRef(null);
+  const svgRef = React.useRef(null);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -144,21 +144,58 @@ function App() {
   };
 
   const exportPng = async () => {
-    if (!mapRef.current) {
+    if (!svgRef.current) {
       return;
     }
 
     setExportStatus('Preparing...');
 
     try {
-      const dataUrl = await toPng(mapRef.current, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: '#f8fafc',
+      const svg = svgRef.current;
+      const clone = svg.cloneNode(true);
+      const sourceNodes = [svg, ...svg.querySelectorAll('*')];
+      const cloneNodes = [clone, ...clone.querySelectorAll('*')];
+
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', String(mapSize.width));
+      clone.setAttribute('height', String(mapSize.height));
+
+      sourceNodes.forEach((sourceNode, index) => {
+        const cloneNode = cloneNodes[index];
+        const styles = window.getComputedStyle(sourceNode);
+
+        cloneNode.setAttribute('fill', styles.fill);
+        cloneNode.setAttribute('stroke', styles.stroke);
+        cloneNode.setAttribute('stroke-width', styles.strokeWidth);
+        cloneNode.setAttribute('vector-effect', styles.vectorEffect);
       });
+
+      const serializedSvg = new XMLSerializer().serializeToString(clone);
+      const blob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
+      const objectUrl = URL.createObjectURL(blob);
+      const image = new Image();
+
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+        image.src = objectUrl;
+      });
+
+      const scale = 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = mapSize.width * scale;
+      canvas.height = mapSize.height * scale;
+
+      const context = canvas.getContext('2d');
+      context.scale(scale, scale);
+      context.fillStyle = '#f8fafc';
+      context.fillRect(0, 0, mapSize.width, mapSize.height);
+      context.drawImage(image, 0, 0, mapSize.width, mapSize.height);
+      URL.revokeObjectURL(objectUrl);
+
       const link = document.createElement('a');
       link.download = 'visited-countries.png';
-      link.href = dataUrl;
+      link.href = canvas.toDataURL('image/png');
       link.click();
       setExportStatus('Exported');
     } catch {
@@ -188,6 +225,7 @@ function App() {
     <main className="app-shell">
       <section ref={mapRef} className="map-stage" aria-label="World map of visited countries">
         <svg
+          ref={svgRef}
           className="world-map"
           viewBox={`0 0 ${mapSize.width} ${mapSize.height}`}
           role="img"
