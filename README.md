@@ -37,46 +37,24 @@ MAPBOX_TOKEN=pk.your_public_mapbox_token_here
 
 Mapbox public tokens are safe to use in browser apps, but you should restrict the token by allowed URLs in your Mapbox account before publishing.
 
+## Run with Docker
+
+```bash
+docker run -d --rm -p 8080:80 -e MAPBOX_TOKEN=pk.your_public_mapbox_token_here ghcr.io/dotzero/been-there:latest
+```
+
+## Run with Docker Compose
+
+```bash
+MAPBOX_TOKEN=pk.your_public_mapbox_token_here docker compose up -d
+```
+
 ## Development
 
 Start the dev server:
 
 ```bash
 npm run dev
-```
-
-Open:
-
-```text
-http://localhost:5173/
-```
-
-## Build
-
-Create a production build:
-
-```bash
-npm run build
-```
-
-## Docker
-
-Run the published image from GitHub Container Registry:
-
-```bash
-docker run --rm -p 8080:80 -e MAPBOX_TOKEN=pk.your_public_mapbox_token_here ghcr.io/dotzero/been-there:latest
-```
-
-Open:
-
-```text
-http://localhost:8080/
-```
-
-Run with Docker Compose:
-
-```bash
-MAPBOX_TOKEN=pk.your_public_mapbox_token_here docker compose up
 ```
 
 ## License
