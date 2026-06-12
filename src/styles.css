@@ -178,6 +178,15 @@ button {
   background: #eef4f8;
 }
 
+.toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.toolbar button:disabled:hover {
+  background: #ffffff;
+}
+
 .toolbar-button--text span {
   color: #172033;
   font-size: 0.86rem;

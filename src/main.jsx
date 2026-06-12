@@ -9,9 +9,11 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import Download from 'lucide-react/dist/esm/icons/download';
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
-import Globe2 from 'lucide-react/dist/esm/icons/globe-2';
+import Earth from 'lucide-react/dist/esm/icons/earth';
 import Languages from 'lucide-react/dist/esm/icons/languages';
+import ListChecks from 'lucide-react/dist/esm/icons/list-checks';
 import LinkIcon from 'lucide-react/dist/esm/icons/link';
+import MapIcon from 'lucide-react/dist/esm/icons/map';
 import Moon from 'lucide-react/dist/esm/icons/moon';
 import Sun from 'lucide-react/dist/esm/icons/sun';
 import { feature } from 'topojson-client';
@@ -23,8 +25,10 @@ const LEGACY_COUNTRIES_QUERY_KEY = 'c';
 const VISITED_QUERY_KEY = 'v';
 const LANGUAGE_QUERY_KEY = 'l';
 const STYLE_QUERY_KEY = 's';
+const PROJECTION_QUERY_KEY = 'p';
 const DEFAULT_LANGUAGE = 'en';
 const DEFAULT_MAP_STYLE = 'standard';
+const DEFAULT_MAP_PROJECTION = 'flat';
 const SUPPORTED_LANGUAGES = new Set(['en', 'ru']);
 const runtimeConfig = globalThis.__RUNTIME_CONFIG__ ?? {};
 const runtimeMapboxToken = runtimeConfig.MAPBOX_TOKEN;
@@ -37,6 +41,7 @@ const MAPBOX_STYLES = {
   dark: 'mapbox://styles/mapbox/dark-v11',
 };
 const SUPPORTED_MAP_STYLES = new Set(Object.keys(MAPBOX_STYLES));
+const SUPPORTED_MAP_PROJECTIONS = new Set(['flat', 'globe']);
 const COUNTRIES_SOURCE_ID = 'visited-country-boundaries';
 const MAPBOX_COUNTRIES_SOURCE_URL = 'mapbox://mapbox.country-boundaries-v1';
 const MAPBOX_COUNTRIES_SOURCE_LAYER = 'country_boundaries';
@@ -76,6 +81,9 @@ const MESSAGES = {
     selectAll: 'Select all',
     languageLabel: 'Switch language',
     styleToggleLabel: 'Switch day/night mode',
+    globeToggleLabel: 'Switch to globe view',
+    flatToggleLabel: 'Switch to flat map',
+    globeUnavailable: 'Globe view requires Mapbox',
     collapseToolbar: 'Hide toolbar',
     expandToolbar: 'Show toolbar',
   },
@@ -101,6 +109,9 @@ const MESSAGES = {
     selectAll: 'Выделить все',
     languageLabel: 'Сменить язык',
     styleToggleLabel: 'Сменить режим день/ночь',
+    globeToggleLabel: 'Переключить на глобус',
+    flatToggleLabel: 'Переключить на плоскую карту',
+    globeUnavailable: 'Для глобуса нужен Mapbox',
     collapseToolbar: 'Скрыть панель',
     expandToolbar: 'Показать панель',
   },
@@ -208,15 +219,22 @@ function parseStateFromUrl() {
   const rawCountries = params.get(LEGACY_COUNTRIES_QUERY_KEY);
   const rawLanguage = params.get(LANGUAGE_QUERY_KEY)?.toLowerCase();
   const rawMapStyle = params.get(STYLE_QUERY_KEY);
+  const rawMapProjection = params.get(PROJECTION_QUERY_KEY);
   const language = SUPPORTED_LANGUAGES.has(rawLanguage) ? rawLanguage : DEFAULT_LANGUAGE;
   const languageExplicit = params.has(LANGUAGE_QUERY_KEY);
   const mapStyle = SUPPORTED_MAP_STYLES.has(rawMapStyle) ? rawMapStyle : DEFAULT_MAP_STYLE;
   const mapStyleExplicit = params.has(STYLE_QUERY_KEY);
+  const mapProjection = SUPPORTED_MAP_PROJECTIONS.has(rawMapProjection)
+    ? rawMapProjection
+    : DEFAULT_MAP_PROJECTION;
+  const mapProjectionExplicit = params.has(PROJECTION_QUERY_KEY);
   const compactVisited = decodeVisited(rawVisited);
 
   return {
     language,
     languageExplicit,
+    mapProjection,
+    mapProjectionExplicit,
     mapStyle,
     mapStyleExplicit,
     visited: compactVisited ?? decodeLegacyCountries(rawCountries),
@@ -255,6 +273,30 @@ function getTinyCountriesGeoJson(visited) {
         },
       })),
   };
+}
+
+function getMapboxProjectionName(mapProjection) {
+  return mapProjection === 'globe' ? 'globe' : 'mercator';
+}
+
+function getMapboxFog(mapProjection) {
+  if (mapProjection !== 'globe') {
+    return null;
+  }
+
+  return {
+    range: [0.8, 8],
+    color: '#d7ecff',
+    'high-color': '#7fb1ff',
+    'horizon-blend': 0.18,
+    'space-color': '#05070d',
+    'star-intensity': 0.3,
+  };
+}
+
+function applyMapProjection(map, mapProjection) {
+  map.setProjection(getMapboxProjectionName(mapProjection));
+  map.setFog(getMapboxFog(mapProjection));
 }
 
 function createVisitedPattern() {
@@ -383,7 +425,15 @@ function updateVisitedLayers(map, visited) {
   }
 }
 
-function writeStateToUrl(visited, language, languageExplicit, mapStyle, mapStyleExplicit) {
+function writeStateToUrl(
+  visited,
+  language,
+  languageExplicit,
+  mapStyle,
+  mapStyleExplicit,
+  mapProjection,
+  mapProjectionExplicit,
+) {
   const url = new URL(window.location.href);
   const encodedVisited = encodeVisited(visited);
   const queryParts = [];
@@ -398,6 +448,10 @@ function writeStateToUrl(visited, language, languageExplicit, mapStyle, mapStyle
 
   if (mapStyleExplicit || mapStyle !== DEFAULT_MAP_STYLE) {
     queryParts.push(`${STYLE_QUERY_KEY}=${mapStyle}`);
+  }
+
+  if (mapProjectionExplicit || mapProjection !== DEFAULT_MAP_PROJECTION) {
+    queryParts.push(`${PROJECTION_QUERY_KEY}=${mapProjection}`);
   }
 
   url.search = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
@@ -420,6 +474,8 @@ function App() {
   const [languageExplicit, setLanguageExplicit] = React.useState(initialUrlState.languageExplicit);
   const [mapStyle, setMapStyle] = React.useState(initialUrlState.mapStyle);
   const [mapStyleExplicit, setMapStyleExplicit] = React.useState(initialUrlState.mapStyleExplicit);
+  const [mapProjection, setMapProjection] = React.useState(initialUrlState.mapProjection);
+  const [mapProjectionExplicit, setMapProjectionExplicit] = React.useState(initialUrlState.mapProjectionExplicit);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [isToolbarCollapsed, setIsToolbarCollapsed] = React.useState(true);
@@ -440,6 +496,7 @@ function App() {
   const mapboxContainerRef = React.useRef(null);
   const activeMapStyleRef = React.useRef(null);
   const mapStyleRef = React.useRef(mapStyle);
+  const mapProjectionRef = React.useRef(mapProjection);
   const svgRef = React.useRef(null);
   const visitedRef = React.useRef(visited);
 
@@ -511,8 +568,16 @@ function App() {
   }, []);
 
   React.useEffect(() => {
-    writeStateToUrl(visited, language, languageExplicit, mapStyle, mapStyleExplicit);
-  }, [language, languageExplicit, mapStyle, mapStyleExplicit, visited]);
+    writeStateToUrl(
+      visited,
+      language,
+      languageExplicit,
+      mapStyle,
+      mapStyleExplicit,
+      mapProjection,
+      mapProjectionExplicit,
+    );
+  }, [language, languageExplicit, mapProjection, mapProjectionExplicit, mapStyle, mapStyleExplicit, visited]);
 
   React.useEffect(() => {
     if (!copyStatus && !exportStatus) {
@@ -534,6 +599,10 @@ function App() {
   React.useEffect(() => {
     mapStyleRef.current = mapStyle;
   }, [mapStyle]);
+
+  React.useEffect(() => {
+    mapProjectionRef.current = mapProjection;
+  }, [mapProjection]);
 
   React.useEffect(() => {
     if (!MAPBOX_TOKEN) {
@@ -558,7 +627,7 @@ function App() {
         [-180, -60],
         [180, 82],
       ],
-      projection: 'mercator',
+      projection: getMapboxProjectionName(mapProjectionRef.current),
       renderWorldCopies: false,
       preserveDrawingBuffer: true,
       attributionControl: false,
@@ -569,7 +638,10 @@ function App() {
     activeMapStyleRef.current = mapStyleRef.current;
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
-    const onLoad = () => addVisitedLayers(map, countriesGeoJson, visitedRef.current);
+    const onLoad = () => {
+      applyMapProjection(map, mapProjectionRef.current);
+      addVisitedLayers(map, countriesGeoJson, visitedRef.current);
+    };
     const onError = () => {
       setRenderMode('svg');
       setMapError('mapError');
@@ -595,10 +667,21 @@ function App() {
     activeMapStyleRef.current = mapStyle;
     map.setStyle(MAPBOX_STYLES[mapStyle]);
     map.once('style.load', () => {
+      applyMapProjection(map, mapProjectionRef.current);
       addVisitedLayers(map, countriesGeoJson, visitedRef.current);
       updateVisitedLayers(map, visitedRef.current);
     });
   }, [countriesGeoJson, mapStyle]);
+
+  React.useEffect(() => {
+    const map = mapboxRef.current;
+
+    if (!map || !map.loaded()) {
+      return;
+    }
+
+    applyMapProjection(map, mapProjection);
+  }, [mapProjection]);
 
   React.useEffect(() => {
     const map = mapboxRef.current;
@@ -618,6 +701,8 @@ function App() {
       setLanguageExplicit(nextState.languageExplicit);
       setMapStyle(nextState.mapStyle);
       setMapStyleExplicit(nextState.mapStyleExplicit);
+      setMapProjection(nextState.mapProjection);
+      setMapProjectionExplicit(nextState.mapProjectionExplicit);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -690,6 +775,11 @@ function App() {
   const toggleMapStyle = () => {
     setMapStyle((current) => (current === 'standard' ? 'dark' : 'standard'));
     setMapStyleExplicit(true);
+  };
+
+  const toggleMapProjection = () => {
+    setMapProjection((current) => (current === 'globe' ? 'flat' : 'globe'));
+    setMapProjectionExplicit(true);
   };
 
   const exportPng = async () => {
@@ -787,6 +877,12 @@ function App() {
   }, [mapSize.height, mapSize.width]);
 
   const path = React.useMemo(() => geoPath(projection), [projection]);
+  const canToggleGlobe = renderMode === 'mapbox';
+  const projectionToggleLabel = canToggleGlobe
+    ? mapProjection === 'globe'
+      ? messages.flatToggleLabel
+      : messages.globeToggleLabel
+    : messages.globeUnavailable;
 
   return (
     <main className="app-shell">
@@ -868,7 +964,17 @@ function App() {
             aria-label={messages.countriesButton}
             title={messages.countriesButton}
           >
-            <Globe2 aria-hidden="true" />
+            <ListChecks aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={toggleMapProjection}
+            aria-label={projectionToggleLabel}
+            title={projectionToggleLabel}
+            disabled={!canToggleGlobe}
+          >
+            {mapProjection === 'globe' ? <Earth aria-hidden="true" /> : <MapIcon aria-hidden="true" />}
           </button>
           <button
             type="button"
