@@ -68,6 +68,7 @@ const MESSAGES = {
     preparing: 'Preparing...',
     exported: 'Exported',
     exportFailed: 'Export failed',
+    mapLoading: 'Loading map...',
     mapError: 'Map data failed to load',
     mapboxTokenMissing: 'Add MAPBOX_TOKEN to .env to use Mapbox',
     webglFallback: 'WebGL is unavailable, showing the fallback map',
@@ -96,6 +97,7 @@ const MESSAGES = {
     preparing: 'Готовлю...',
     exported: 'Экспортировано',
     exportFailed: 'Не удалось экспортировать',
+    mapLoading: 'Загружаю карту...',
     mapError: 'Не удалось загрузить карту',
     mapboxTokenMissing: 'Добавьте MAPBOX_TOKEN в .env, чтобы использовать Mapbox',
     webglFallback: 'WebGL недоступен, показываю резервную карту',
@@ -490,6 +492,7 @@ function App() {
     return initialCanUseMapbox ? '' : 'webglFallback';
   });
   const [renderMode, setRenderMode] = React.useState(initialCanUseMapbox ? 'mapbox' : 'svg');
+  const [mapLoading, setMapLoading] = React.useState(initialCanUseMapbox);
   const [mapSize, setMapSize] = React.useState({ width: 1200, height: 760 });
   const mapRef = React.useRef(null);
   const mapboxRef = React.useRef(null);
@@ -541,6 +544,7 @@ function App() {
       })
       .catch(() => {
         if (isMounted) {
+          setMapLoading(false);
           setMapError('mapError');
         }
       });
@@ -614,6 +618,7 @@ function App() {
     }
 
     setMapError('');
+    setMapLoading(true);
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
     const map = new mapboxgl.Map({
@@ -641,8 +646,10 @@ function App() {
     const onLoad = () => {
       applyMapProjection(map, mapProjectionRef.current);
       addVisitedLayers(map, countriesGeoJson, visitedRef.current);
+      map.once('idle', () => setMapLoading(false));
     };
     const onError = () => {
+      setMapLoading(false);
       setRenderMode('svg');
       setMapError('mapError');
     };
@@ -665,11 +672,13 @@ function App() {
     }
 
     activeMapStyleRef.current = mapStyle;
+    setMapLoading(true);
     map.setStyle(MAPBOX_STYLES[mapStyle]);
     map.once('style.load', () => {
       applyMapProjection(map, mapProjectionRef.current);
       addVisitedLayers(map, countriesGeoJson, visitedRef.current);
       updateVisitedLayers(map, visitedRef.current);
+      map.once('idle', () => setMapLoading(false));
     });
   }, [countriesGeoJson, mapStyle]);
 
@@ -930,6 +939,12 @@ function App() {
               );
             })}
           </svg>
+        )}
+        {renderMode === 'mapbox' && mapLoading && !mapError && (
+          <div className="map-loading" role="status" aria-live="polite">
+            <span className="map-loading__spinner" aria-hidden="true" />
+            <span>{messages.mapLoading}</span>
+          </div>
         )}
         {mapError && <div className="map-error" role="alert">{messages[mapError]}</div>}
       </section>

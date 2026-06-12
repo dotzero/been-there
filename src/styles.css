@@ -62,6 +62,40 @@ button {
   outline: none;
 }
 
+.map-loading {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(23, 32, 51, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #172033;
+  padding: 12px 14px;
+  box-shadow: 0 18px 50px rgba(23, 32, 51, 0.14);
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(16px);
+}
+
+.map-loading__spinner {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(23, 32, 51, 0.16);
+  border-top-color: #16a085;
+  border-radius: 50%;
+  animation: map-loading-spin 800ms linear infinite;
+}
+
+@keyframes map-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .ocean {
   fill: #f8fafc;
 }
