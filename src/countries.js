@@ -266,7 +266,6 @@ export const COUNTRIES = countryRows
 export const COUNTRY_CODES = COUNTRIES.map((country) => country.code);
 
 export const COUNTRY_BY_CODE = new Map(COUNTRIES.map((country) => [country.code, country]));
-export const COUNTRY_BY_NUMERIC = new Map(COUNTRIES.map((country) => [country.numeric, country]));
 
 export const TINY_COUNTRY_CODES = [
   'ABW',

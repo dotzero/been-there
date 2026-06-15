@@ -45,12 +45,6 @@ button {
   background: #f8fafc;
 }
 
-.world-map {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
 .mapbox-map {
   position: absolute;
   inset: 0;
@@ -94,37 +88,6 @@ button {
   to {
     transform: rotate(360deg);
   }
-}
-
-.ocean {
-  fill: #f8fafc;
-}
-
-.country {
-  fill: #d7dee8;
-  stroke: #f8fafc;
-  stroke-width: 0.45;
-  outline: none;
-  transition: fill 160ms ease;
-}
-
-.country--visited {
-  fill: #38bdf8;
-}
-
-.country:hover {
-  fill: #aeb9c8;
-}
-
-.country--visited:hover {
-  fill: #0ea5e9;
-}
-
-.tiny-marker {
-  fill: rgba(56, 189, 248, 0.5);
-  stroke: rgba(56, 189, 248, 0.5);
-  stroke-width: 0.6;
-  vector-effect: non-scaling-stroke;
 }
 
 .app-logo {
