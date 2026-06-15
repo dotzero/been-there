@@ -17,7 +17,13 @@ import MapIcon from 'lucide-react/dist/esm/icons/map';
 import Moon from 'lucide-react/dist/esm/icons/moon';
 import Sun from 'lucide-react/dist/esm/icons/sun';
 import { feature } from 'topojson-client';
-import { COUNTRIES, COUNTRY_BY_CODE, COUNTRY_BY_NUMERIC, TINY_COUNTRY_CODES } from './countries.js';
+import {
+  COUNTRIES,
+  COUNTRY_BY_CODE,
+  COUNTRY_BY_NUMERIC,
+  COUNTRY_CODES,
+  TINY_COUNTRY_CODES,
+} from './countries.js';
 import './styles.css';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
@@ -54,7 +60,6 @@ const VISITED_PATTERN_ID = 'visited-stripes';
 isoCountries.registerLocale(enCountries);
 isoCountries.registerLocale(ruCountries);
 
-const COUNTRY_CODES = COUNTRIES.map((country) => country.code).sort();
 const COUNTRY_CODE_INDEX = new Map(COUNTRY_CODES.map((code, index) => [code, index]));
 const VISITED_MASK_BYTES = Math.ceil(COUNTRY_CODES.length / 8);
 
@@ -75,7 +80,7 @@ const MESSAGES = {
     mapStageLabel: 'Been There world map',
     mapLabel: 'World map',
     modalTitle: 'Been There',
-    modalSummary: (selected, total) => `${selected} of ${total} UN member states selected`,
+    modalSummary: (selected, total) => `${selected} of ${total} ISO 3166-1 entries selected`,
     close: 'Close',
     searchPlaceholder: 'Search country or ISO code',
     clear: 'Clear',
@@ -104,7 +109,7 @@ const MESSAGES = {
     mapStageLabel: 'Карта мира с посещенными странами',
     mapLabel: 'Карта мира',
     modalTitle: 'Посещенные страны',
-    modalSummary: (selected, total) => `Выбрано ${selected} из ${total} стран ООН`,
+    modalSummary: (selected, total) => `Выбрано ${selected} из ${total} записей ISO 3166-1`,
     close: 'Закрыть',
     searchPlaceholder: 'Поиск страны или ISO-кода',
     clear: 'Очистить',
