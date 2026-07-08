@@ -33,6 +33,7 @@ button {
   position: relative;
   width: 100vw;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(242, 246, 250, 0.92)),
@@ -42,6 +43,7 @@ button {
 .map-stage {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   background: #f8fafc;
 }
 

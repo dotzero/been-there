@@ -52,6 +52,16 @@ const VISITED_LINE_LAYER_ID = 'visited-country-line';
 const TINY_SOURCE_ID = 'visited-tiny-countries';
 const TINY_LAYER_ID = 'visited-tiny-country-markers';
 const VISITED_PATTERN_ID = 'visited-stripes';
+const MAP_CENTER = [10, 18];
+const MAP_BASE_ZOOM = 1.15;
+const MAP_MIN_ZOOM = 1;
+const MAP_MAX_ZOOM = 5;
+const MAP_MAX_BOUNDS = [
+  [-180, -60],
+  [180, 82],
+];
+const MAPBOX_WORLD_SIZE = 512;
+const MERCATOR_MAX_LATITUDE = 85.0511287798066;
 
 isoCountries.registerLocale(enCountries);
 isoCountries.registerLocale(ruCountries);
@@ -300,6 +310,54 @@ function applyMapProjection(map, mapProjection) {
   map.setFog(getMapboxFog(mapProjection));
 }
 
+function getMercatorY(latitude) {
+  const clampedLatitude = Math.max(
+    -MERCATOR_MAX_LATITUDE,
+    Math.min(MERCATOR_MAX_LATITUDE, latitude),
+  );
+  const latitudeRadians = (clampedLatitude * Math.PI) / 180;
+
+  return (
+    1 -
+    Math.log(Math.tan(latitudeRadians) + 1 / Math.cos(latitudeRadians)) / Math.PI
+  ) / 2;
+}
+
+function getMapBoundsHeightZoom(container) {
+  const viewportHeight = container?.clientHeight ?? window.innerHeight;
+  const viewportWidth = container?.clientWidth ?? window.innerWidth;
+
+  if (viewportHeight <= viewportWidth) {
+    return MAP_MIN_ZOOM;
+  }
+
+  const [[, south], [, north]] = MAP_MAX_BOUNDS;
+  const boundsHeight = Math.abs(getMercatorY(south) - getMercatorY(north)) * MAPBOX_WORLD_SIZE;
+
+  if (boundsHeight <= 0) {
+    return MAP_MIN_ZOOM;
+  }
+
+  return Math.max(MAP_MIN_ZOOM, Math.min(MAP_MAX_ZOOM, Math.log2(viewportHeight / boundsHeight)));
+}
+
+function getResponsiveMinZoom(container) {
+  return Math.max(MAP_MIN_ZOOM, getMapBoundsHeightZoom(container));
+}
+
+function syncMapZoomToViewport(map, container) {
+  const minZoom = getResponsiveMinZoom(container);
+
+  map.setMinZoom(minZoom);
+
+  if (map.getZoom() < minZoom) {
+    map.jumpTo({
+      center: MAP_CENTER,
+      zoom: minZoom,
+    });
+  }
+}
+
 function createVisitedPattern() {
   const size = 16;
   const canvas = document.createElement('canvas');
@@ -545,18 +603,16 @@ function App() {
     setMapError('');
     setMapLoading(true);
     mapboxgl.accessToken = MAPBOX_TOKEN;
+    const initialMinZoom = getResponsiveMinZoom(mapboxContainerRef.current);
 
     const map = new mapboxgl.Map({
       container: mapboxContainerRef.current,
       style: MAPBOX_STYLES[mapStyleRef.current],
-      center: [10, 18],
-      zoom: 1.15,
-      minZoom: 1,
-      maxZoom: 5,
-      maxBounds: [
-        [-180, -60],
-        [180, 82],
-      ],
+      center: MAP_CENTER,
+      zoom: Math.max(MAP_BASE_ZOOM, initialMinZoom),
+      minZoom: initialMinZoom,
+      maxZoom: MAP_MAX_ZOOM,
+      maxBounds: MAP_MAX_BOUNDS,
       projection: getMapboxProjectionName(mapProjectionRef.current),
       renderWorldCopies: false,
       preserveDrawingBuffer: true,
@@ -567,8 +623,17 @@ function App() {
     mapboxRef.current = map;
     activeMapStyleRef.current = mapStyleRef.current;
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
+    const syncViewport = () => {
+      map.resize();
+      syncMapZoomToViewport(map, mapboxContainerRef.current);
+    };
+    const resizeObserver = new ResizeObserver(syncViewport);
+
+    resizeObserver.observe(mapboxContainerRef.current);
+    window.visualViewport?.addEventListener('resize', syncViewport);
 
     const onLoad = () => {
+      syncMapZoomToViewport(map, mapboxContainerRef.current);
       applyMapProjection(map, mapProjectionRef.current);
       addVisitedLayers(map, visitedRef.current);
       map.once('idle', () => setMapLoading(false));
@@ -582,6 +647,8 @@ function App() {
     map.on('error', onError);
 
     return () => {
+      resizeObserver.disconnect();
+      window.visualViewport?.removeEventListener('resize', syncViewport);
       mapboxRef.current = null;
       activeMapStyleRef.current = null;
       map.remove();
