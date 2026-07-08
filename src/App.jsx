@@ -337,7 +337,7 @@ export function App() {
             aria-label={projectionToggleLabel}
             title={projectionToggleLabel}
           >
-            {mapProjection === 'globe' ? <Earth aria-hidden="true" /> : <MapIcon aria-hidden="true" />}
+            {mapProjection === 'globe' ? <MapIcon aria-hidden="true" /> : <Earth aria-hidden="true" />}
           </button>
           <button
             type="button"
@@ -350,7 +350,7 @@ export function App() {
           </button>
           <button
             type="button"
-            className="toolbar-button"
+            className="toolbar-button toolbar-button--export"
             onClick={exportPng}
             aria-label={messages.exportPng}
             title={messages.exportPng}
