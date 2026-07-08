@@ -15,6 +15,7 @@ import { exportMapPng } from './mapExport.js';
 import {
   addMapboxAttribution,
   addVisitedLayers,
+  applyMapLabelTheme,
   applyMapProjection,
   canUseMapbox,
   createMapboxMap,
@@ -115,6 +116,7 @@ export function App() {
     const onLoad = () => {
       syncMapZoomToViewport(map, mapboxContainerRef.current);
       applyMapProjection(map, mapProjectionRef.current);
+      applyMapLabelTheme(map, mapStyleRef.current);
       addVisitedLayers(map, visitedRef.current);
       map.once('idle', () => setMapLoading(false));
     };
@@ -147,6 +149,7 @@ export function App() {
     map.setStyle(getMapboxStyleUrl(mapStyle));
     map.once('style.load', () => {
       applyMapProjection(map, mapProjectionRef.current);
+      applyMapLabelTheme(map, mapStyle);
       addVisitedLayers(map, visitedRef.current);
       updateVisitedLayers(map, visitedRef.current);
       map.once('idle', () => setMapLoading(false));

@@ -21,6 +21,10 @@ const MAP_MAX_BOUNDS = [
 ];
 const MAPBOX_WORLD_SIZE = 512;
 const MERCATOR_MAX_LATITUDE = 85.0511287798066;
+const DARK_COUNTRY_LABEL_COLOR = '#edf6ff';
+const DARK_COUNTRY_LABEL_HALO_COLOR = '#05070d';
+const DARK_COUNTRY_LABEL_HALO_WIDTH = 1.2;
+const DARK_COUNTRY_LABEL_EMISSIVE_STRENGTH = 1;
 
 function getVisitedFilter(visited, propertyName = 'iso3') {
   const codes = [...visited];
@@ -69,6 +73,14 @@ function getMapboxFog(mapProjection) {
     'space-color': '#05070d',
     'star-intensity': 0.3,
   };
+}
+
+function isCountryLabelLayer(layer) {
+  return (
+    layer.type === 'symbol' &&
+    layer.layout?.['text-field'] &&
+    layer.id.toLowerCase().includes('country')
+  );
 }
 
 function getMercatorY(latitude) {
@@ -184,6 +196,27 @@ export function addMapboxAttribution(map) {
 export function applyMapProjection(map, mapProjection) {
   map.setProjection(getMapboxProjectionName(mapProjection));
   map.setFog(getMapboxFog(mapProjection));
+}
+
+export function applyMapLabelTheme(map, mapStyle) {
+  if (mapStyle !== 'dark') {
+    return;
+  }
+
+  const layers = map.getStyle()?.layers ?? [];
+
+  layers
+    .filter(isCountryLabelLayer)
+    .forEach((layer) => {
+      if (!map.getLayer(layer.id)) {
+        return;
+      }
+
+      map.setPaintProperty(layer.id, 'text-color', DARK_COUNTRY_LABEL_COLOR);
+      map.setPaintProperty(layer.id, 'text-halo-color', DARK_COUNTRY_LABEL_HALO_COLOR);
+      map.setPaintProperty(layer.id, 'text-halo-width', DARK_COUNTRY_LABEL_HALO_WIDTH);
+      map.setPaintProperty(layer.id, 'text-emissive-strength', DARK_COUNTRY_LABEL_EMISSIVE_STRENGTH);
+    });
 }
 
 export function syncMapZoomToViewport(map, container) {
